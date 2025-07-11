@@ -1,0 +1,142 @@
+🗺️ Lulo Product Roadmap
+Purpose: To guide development across phases — focused on a wishlist-first, socially powered, cross-border shopping experience.
+
+🔹 Core Build (MVP)
+1. Wishlist System
+
+Add items manually or via pasted link
+
+Upload image to find matching product (Google Lens-style)
+
+Toggle visibility: private / public / “friends only”
+
+Mark as “gift me” (light feature, optional toggle)
+
+Add notes (e.g. sizing, urgency, occasion)
+
+Track prices across platforms
+
+2. Browser Extension (Safari/Chrome)
+
+Save items to Lulo wishlist from any e-commerce site
+
+Auto-detect product name, price, and image
+
+Seamless sync with app wishlist
+
+3. Closet System
+
+Digitize wardrobe with images and tags
+
+Add notes (e.g. size, brand, fit info)
+
+Toggle item as “borrowable” or not
+
+Filter by color, type, frequency of wear
+
+4. Lookboard Creator
+
+Combine wishlist + closet items into collage layouts
+
+Option to build manually (drag-and-drop) or AI-generated layouts
+
+Use cases: event styling, trip packing, bachelorette planning
+
+Collages can be shared privately or publicly with friends
+
+5. Network & Social Layer
+
+Add friends, create small fashion circles
+
+Share wishlists, items, lookboards
+
+Open-ended needs list (e.g. “I’m looking for PJs”)
+
+Friends can recommend items and get Lulo points (gamified reward system)
+
+6. Style Icons Section
+
+Follow public profiles of influencers or fashion personalities
+
+Bookmark specific pieces they’ve worn (“Get the Look”)
+
+See which items are most saved across the community
+
+7. News Feed
+
+Aggregated editorial content from sources like Vogue, Who What Wear, etc.
+
+AI-curated to match wishlist interests or wardrobe gaps
+
+Sponsored trend posts and integrated branded content opportunities
+
+8. Search & Discovery
+
+Browse trending items across the community
+
+Filter by category, popularity, country, or friends’ favorites
+
+9. Profile
+
+Manage privacy and visibility
+
+Track activity, points, borrowing status
+
+Connect retail accounts (for optional import of purchase history)
+
+🟡 Phase 2 — Social + Cross-Border Expansion
+10. Global Shopping Utility: “Suitcase Fairy”
+
+Request hard-to-find or unavailable products from international friends
+
+Notify users when friends are traveling between key cities
+
+Track who might be able to carry items (e.g. “Ana is going to Paris next week”)
+
+Encourage organic exchange rather than a logistics service
+
+11. AI Fit Assistant
+
+Sizing recommendation engine based on known closet items + brand fit history
+
+Helps reduce guesswork on international sizing and returns
+
+12. Points & Badges System
+
+Reward for helpful recs, bringing back products, lending clothes
+
+Points could unlock styling perks or elevated visibility
+
+🔮 Future Expansion Plans
+13. Beauty & Wellness Companion App: Fresa
+
+Your Vanity Case = products you own
+
+In Your Radar = wishlist-style save area
+
+Upload selfies of what a product looked like on you
+
+AI ingredient analysis for transparency and clean beauty alternatives
+
+Suitcase Fairy-style feature for global beauty product access
+
+Social review tool: “Have You Tried This?” section for product testing among friends
+
+14. Virtual Dressing Room (future feature)
+
+Live or recorded try-on sessions with friends
+
+Mirrors real-life dressing room experience digitally
+
+Group events for styling decisions or big purchases (paused for now)
+
+💡 Tech Infrastructure Notes for Devs
+Backend: User auth, item database, wishlist + closet objects, link parsing logic
+
+Frontend: SwiftUI / React Native for mobile app; extension integration for browser
+
+AI/ML: Use image recognition APIs (e.g. Google Vision, Clarifai) + LLMs for recs
+
+Chrome/Safari Extensions: Use native APIs for scraping product info
+
+Optional integrations: Shopify, Zara, Bloomingdale’s APIs for syncing past purchases
