@@ -1,6 +1,30 @@
+# Node deps & build output
 node_modules
 dist
+
+# macOS
 .DS_Store
-server/public
+
+# Environment variables (sensitive)
+.env
+server/.env
+*.env
+
+# Ignore all of server/public…
+server/public/*
+
+# …but do track the one .env in there
+!server/public/.env
+
+# Vite config variants
 vite.config.ts.*
+
+# Archives
 *.tar.gz
+
+# Database files
+*.db
+*.sqlite
+
+# Development scripts with secrets
+run-dev.sh

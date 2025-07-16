@@ -15,7 +15,7 @@
   --input: hsl(20, 5.9%, 90%);
   --primary: hsl(207, 90%, 54%);
   --primary-foreground: hsl(211, 100%, 99%);
-  --secondary: hsl(60, 4.8%, 95.9%);
+  --secondary: hsl(350, 25%, 85%);
   --secondary-foreground: hsl(24, 9.8%, 10%);
   --accent: hsl(60, 4.8%, 95.9%);
   --accent-foreground: hsl(24, 9.8%, 10%);
@@ -24,13 +24,17 @@
   --ring: hsl(20, 14.3%, 4.1%);
   --radius: 0.5rem;
   
-  /* Lulo brand colors */
-  --lulo-pink: hsl(344, 100%, 84%);
-  --lulo-coral: hsl(0, 100%, 75%);
-  --lulo-sage: hsl(90, 25%, 64%);
-  --lulo-cream: hsl(39, 100%, 97%);
-  --lulo-gray: hsl(240, 2%, 56%);
+  /* Lulo brand colors - updated for Figma design */
+  --lulo-pink: hsl(350, 25%, 85%);
+  --lulo-pink-accent: hsl(350, 35%, 75%);
+  --lulo-coral: hsl(0, 45%, 65%);
+  --lulo-sage: hsl(90, 20%, 60%);
+  --lulo-cream: hsl(39, 50%, 98%);
+  --lulo-gray: hsl(240, 8%, 46%);
   --lulo-dark: hsl(240, 12%, 11%);
+  --lulo-light-gray: hsl(240, 6%, 95%);
+  --lulo-medium-gray: hsl(240, 4%, 75%);
+  --lulo-border: hsl(240, 6%, 90%);
 }
 
 .dark {
@@ -71,6 +75,10 @@
     background-color: var(--lulo-pink);
   }
   
+  .bg-lulo-pink-accent {
+    background-color: var(--lulo-pink-accent);
+  }
+  
   .bg-lulo-coral {
     background-color: var(--lulo-coral);
   }
@@ -85,6 +93,10 @@
   
   .text-lulo-pink {
     color: var(--lulo-pink);
+  }
+  
+  .text-lulo-pink-accent {
+    color: var(--lulo-pink-accent);
   }
   
   .text-lulo-coral {
@@ -107,8 +119,16 @@
     border-color: var(--lulo-pink);
   }
   
+  .border-lulo-pink-accent {
+    border-color: var(--lulo-pink-accent);
+  }
+  
   .ring-lulo-pink {
     --tw-ring-color: var(--lulo-pink);
+  }
+  
+  .ring-lulo-pink-accent {
+    --tw-ring-color: var(--lulo-pink-accent);
   }
   
   .ring-lulo-sage {
@@ -119,12 +139,65 @@
     --tw-ring-color: var(--lulo-coral);
   }
   
+  .bg-lulo-light-gray {
+    background-color: var(--lulo-light-gray);
+  }
+  
+  .bg-lulo-medium-gray {
+    background-color: var(--lulo-medium-gray);
+  }
+  
+  .text-lulo-light-gray {
+    color: var(--lulo-light-gray);
+  }
+  
+  .text-lulo-medium-gray {
+    color: var(--lulo-medium-gray);
+  }
+  
+  .border-lulo-border {
+    border-color: var(--lulo-border);
+  }
+  
   .card-shadow {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
   
+  .pinterest-shadow {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  }
+  
+  .pinterest-shadow-hover {
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.15), 0 10px 10px rgba(0, 0, 0, 0.12);
+  }
+  
   .modal-backdrop {
     backdrop-filter: blur(10px);
+  }
+  
+  .glass-filter-container {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+  .glass-filter-tab {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+  }
+  
+  .glass-filter-tab:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.4);
+  }
+  
+  .glass-filter-tab-active {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    color: #1a1a1a;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -158,11 +231,11 @@
   }
   
   .mobile-app-container {
-    @apply max-w-md mx-auto bg-white min-h-screen relative;
+    @apply max-w-md mx-auto bg-lulo-light-gray min-h-screen relative;
   }
   
   .mobile-header {
-    @apply bg-white sticky top-0 z-50 border-b border-gray-100;
+    @apply bg-white sticky top-0 z-50 border-b border-lulo-border;
   }
   
   .mobile-main {
@@ -170,7 +243,42 @@
   }
   
   .mobile-nav {
-    @apply fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-gray-200 py-2;
+    @apply fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-lulo-border py-2;
+  }
+  
+  .masonry-grid {
+    column-count: 3;
+    column-gap: 8px;
+    padding: 8px;
+  }
+  
+  .masonry-item {
+    @apply bg-white rounded-xl overflow-hidden pinterest-shadow mb-2 break-inside-avoid;
+    transition: all 0.3s ease;
+  }
+  
+  .masonry-item:hover {
+    @apply pinterest-shadow-hover;
+  }
+  
+  /* Special header masonry with denser layout */
+  .header-masonry {
+    column-count: 4;
+    column-gap: 4px;
+    padding: 4px;
+  }
+  
+  .header-masonry-item {
+    @apply rounded-lg overflow-hidden mb-1 break-inside-avoid;
+  }
+  
+  .pinterest-card {
+    @apply bg-white rounded-2xl overflow-hidden pinterest-shadow;
+    transition: all 0.3s ease;
+  }
+  
+  .pinterest-card:hover {
+    @apply pinterest-shadow-hover;
   }
   
   .nav-item {

@@ -1,216 +1,338 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Heart, Plus, Search, Gift } from "lucide-react";
+import { useLocation } from "wouter";
+import { Heart, Plus, Search, Filter, MoreHorizontal, Grid, List, Star, ExternalLink, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import BottomNavigation from "@/components/bottom-navigation";
-import ItemCard from "@/components/item-card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { ItemImage } from "@/components/ui/item-image";
+import MasonryLayout from "@/components/masonry-layout";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
+// TypeScript type for flattened wishlist items
+type WishlistItem = {
+  id: number;
+  userId: string;
+  itemId: number;
+  folder: string | null;
+  notes: string | null;
+  priority: number | null;
+  visibility: string | null;
+  giftMe: boolean | null;
+  createdAt: number | null;
+  // Flattened item properties
+  name: string;
+  description?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  brand?: string | null;
+  imageUrl?: string | null;
+  sourceUrl?: string | null;
+  category?: string | null;
+  isPublic?: boolean | null;
+};
+
 export default function Wishlist() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPriority, setSelectedPriority] = useState<number | null>(null);
+  const [selectedBoard, setSelectedBoard] = useState("all");
+  const [viewMode, setViewMode] = useState<"boards" | "items">("boards");
+  const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: wishlistItems = [], isLoading } = useQuery({
+  const { data: wishlistItems = [] as WishlistItem[], isLoading } = useQuery<WishlistItem[]>({
     queryKey: ["/api/wishlist"],
   });
 
-  const removeFromWishlistMutation = useMutation({
-    mutationFn: async (itemId: number) => {
-      return await apiRequest("DELETE", `/api/wishlist/${itemId}`);
-    },
-    onSuccess: () => {
-      toast({
-        title: "Item removed from wishlist",
-        description: "The item has been removed from your wishlist.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/wishlist"] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error removing item",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  // Generate boards data from real wishlist items
+  const generateBoardsFromWishlist = (items: WishlistItem[]) => {
+    const folderCounts: { [key: string]: number } = {};
+    const folderItems: { [key: string]: WishlistItem[] } = {};
+    
+    // Count items per folder and collect first item for cover image
+    items.forEach((wishlistItem: WishlistItem) => {
+      const folder = wishlistItem.folder || 'uncategorized';
+      folderCounts[folder] = (folderCounts[folder] || 0) + 1;
+      if (!folderItems[folder]) {
+        folderItems[folder] = [];
+      }
+      folderItems[folder].push(wishlistItem);
+    });
 
-  const filteredItems = wishlistItems.filter((wishlistItem: any) => {
-    const matchesSearch = wishlistItem.item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         wishlistItem.item.brand?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPriority = selectedPriority === null || wishlistItem.priority === selectedPriority;
-    return matchesSearch && matchesPriority;
-  });
+    // Create board objects with real data
+    const realBoards = Object.keys(folderCounts).map(folderId => {
+      const folderNames: { [key: string]: string } = {
+        'paris-looks': 'Paris Looks',
+        'bachelorette-sarah': 'Bachelorette Sarah',
+        'upstate-weekend': 'Upstate Weekend',
+        'mallorca': 'Mallorca',
+        'workout-sets': 'Workout Sets',
+        'date-night': 'Date Night',
+        'south-of-france': 'South of France',
+        'uncategorized': 'Uncategorized'
+      };
 
-  const getPriorityLabel = (priority: number) => {
-    switch (priority) {
-      case 5: return "Must Have";
-      case 4: return "High";
-      case 3: return "Medium";
-      case 2: return "Low";
-      case 1: return "Maybe";
-      default: return "Medium";
-    }
+      const folderDescriptions: { [key: string]: string } = {
+        'paris-looks': 'Chic Parisian style inspiration',
+        'bachelorette-sarah': 'Party outfits and celebration looks',
+        'upstate-weekend': 'Cozy getaway and countryside vibes',
+        'mallorca': 'Mediterranean vacation essentials',
+        'workout-sets': 'Athletic and activewear pieces',
+        'date-night': 'Romantic and special occasion outfits',
+        'south-of-france': 'Effortless Mediterranean vacation style',
+        'uncategorized': 'Other items'
+      };
+
+      const firstItem = folderItems[folderId][0] as WishlistItem;
+      const coverImage = firstItem?.imageUrl;
+
+      return {
+        id: folderId,
+        name: folderNames[folderId] || folderId,
+        description: folderDescriptions[folderId] || '',
+        itemCount: folderCounts[folderId],
+        coverImage: coverImage,
+        isPrivate: false,
+        isCollaborative: false,
+        isArchived: false
+      };
+    });
+
+    return realBoards;
   };
 
-  const getPriorityColor = (priority: number) => {
-    switch (priority) {
-      case 5: return "bg-red-500";
-      case 4: return "bg-orange-500";
-      case 3: return "bg-yellow-500";
-      case 2: return "bg-blue-500";
-      case 1: return "bg-gray-500";
-      default: return "bg-yellow-500";
-    }
-  };
+  const boardsData = generateBoardsFromWishlist(wishlistItems);
 
-  const totalValue = wishlistItems.reduce((sum: number, item: any) => {
-    return sum + (item.item.price ? parseFloat(item.item.price) : 0);
-  }, 0);
+  const filteredItems = selectedBoard === "all" 
+    ? wishlistItems
+    : wishlistItems.filter((item: WishlistItem) => item.folder === selectedBoard);
 
-  return (
-    <div className="mobile-app-container">
-      {/* Header */}
-      <header className="mobile-header">
-        <div className="p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-900">My Wishlist</h1>
-            <Button
-              size="sm"
-              className="bg-lulo-pink hover:bg-lulo-coral text-white"
-              onClick={() => {
-                // In a real app, this would open the add item modal
-                toast({
-                  title: "Add item to wishlist",
-                  description: "Navigate to Add Item to add new items to your wishlist.",
-                });
-              }}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add Item
-            </Button>
-          </div>
-          
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Search your wishlist..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 bg-gray-50 border-0 rounded-xl"
-            />
-          </div>
+  const filteredBoards = boardsData.filter((board) => {
+    const matchesSearch = board.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    if (selectedBoard === "all") return matchesSearch;
+    if (selectedBoard === "collaborative") return matchesSearch && board.isCollaborative;
+    if (selectedBoard === "secret") return matchesSearch && board.isPrivate;
+    if (selectedBoard === "archived") return matchesSearch && board.isArchived;
+    
+    return matchesSearch;
+  });
 
-          {/* Priority filters */}
-          <div className="flex space-x-2 overflow-x-auto pb-2">
-            <Button
-              variant={selectedPriority === null ? "default" : "outline"}
-              size="sm"
-              onClick={() => setSelectedPriority(null)}
-              className="rounded-full whitespace-nowrap"
-            >
-              All
-            </Button>
-            {[5, 4, 3, 2, 1].map((priority) => (
-              <Button
-                key={priority}
-                variant={selectedPriority === priority ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedPriority(priority)}
-                className="rounded-full whitespace-nowrap"
-              >
-                {getPriorityLabel(priority)}
+  const WishlistItemCard = ({ item }: { item: WishlistItem }) => {
+    const handleItemClick = () => {
+      navigate(`/item/${item.id}`);
+    };
+
+    return (
+      <div className="masonry-item group cursor-pointer" onClick={handleItemClick}>
+        <div className="relative">
+          <ItemImage 
+            imageUrl={item.imageUrl}
+            alt={item.name || "Fashion item"}
+            className="w-full h-auto object-cover"
+          />
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full">
+                <MoreHorizontal className="w-4 h-4" />
               </Button>
-            ))}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Visit Site
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Remove
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="bg-black bg-opacity-70 text-white p-2 rounded">
+            <h3 className="font-medium text-sm line-clamp-1">{item.name}</h3>
+            {item.brand && (
+              <p className="text-xs text-gray-200">{item.brand}</p>
+            )}
+            {item.price && (
+              <p className="text-xs font-medium">${item.price}</p>
+            )}
           </div>
         </div>
-      </header>
+      </div>
+    </div>
+    );
+  };
 
-      <main className="mobile-main">
-        {/* Stats */}
-        <section className="px-4 py-4 bg-white border-b border-gray-100">
-          <div className="grid grid-cols-3 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-lulo-pink">{wishlistItems.length}</div>
-              <div className="text-xs text-gray-600">Total Items</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-lulo-coral">
-                {wishlistItems.filter((item: any) => item.giftMe).length}
-              </div>
-              <div className="text-xs text-gray-600">Gift Me</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-lulo-sage">
-                ${totalValue.toFixed(0)}
-              </div>
-              <div className="text-xs text-gray-600">Total Value</div>
-            </div>
-          </div>
-        </section>
-
-        {/* Wishlist Items */}
-        <section className="px-4 py-4">
-          {isLoading ? (
-            <div className="grid grid-cols-2 gap-3">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="bg-white rounded-xl p-3 card-shadow animate-pulse">
-                  <div className="w-full h-32 bg-gray-200 rounded-lg mb-3"></div>
-                  <div className="h-4 bg-gray-200 rounded mb-2"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-                </div>
-              ))}
-            </div>
-          ) : filteredItems.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3">
-              {filteredItems.map((wishlistItem: any) => (
-                <div key={wishlistItem.id} className="relative">
-                  <ItemCard 
-                    item={wishlistItem.item} 
-                    onRemove={() => removeFromWishlistMutation.mutate(wishlistItem.item.id)}
-                  />
-                  <div className="absolute top-2 left-2 flex flex-col space-y-1">
-                    <Badge 
-                      className={`text-xs text-white ${getPriorityColor(wishlistItem.priority)}`}
-                    >
-                      {getPriorityLabel(wishlistItem.priority)}
-                    </Badge>
-                    {wishlistItem.giftMe && (
-                      <Badge variant="secondary" className="text-xs bg-lulo-pink text-white">
-                        <Gift className="w-3 h-3 mr-1" />
-                        Gift Me
-                      </Badge>
-                    )}
-                  </div>
-                  {wishlistItem.notes && (
-                    <div className="absolute bottom-12 left-2 right-2">
-                      <div className="bg-black bg-opacity-70 text-white text-xs p-2 rounded">
-                        {wishlistItem.notes}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500 mb-2">
-                {searchQuery || selectedPriority ? "No items match your search" : "Your wishlist is empty"}
-              </p>
-              <p className="text-sm text-gray-400">
-                {searchQuery || selectedPriority ? "Try adjusting your filters" : "Start adding items you want to buy"}
-              </p>
-            </div>
+  const BoardCard = ({ board }: { board: any }) => (
+    <div 
+      className="pinterest-card cursor-pointer group"
+      onClick={() => {
+        setSelectedBoard(board.id);
+        setViewMode("items");
+      }}
+    >
+      <div className="relative">
+        <ItemImage 
+          imageUrl={board.coverImage}
+          alt={board.name}
+          className="w-full h-48 object-cover"
+          width={250}
+          height={192}
+        />
+        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full">
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem>
+                <Edit className="w-4 h-4 mr-2" />
+                Edit Board
+              </DropdownMenuItem>
+              <DropdownMenuItem className="text-red-600">
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Board
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      <div className="p-3">
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm text-lulo-dark">{board.name}</h3>
+          {board.isPrivate && (
+            <Badge variant="secondary" className="text-xs">
+              Secret
+            </Badge>
           )}
-        </section>
-      </main>
+        </div>
+        <p className="text-xs text-lulo-gray mt-1">{board.itemCount} Pins</p>
+      </div>
+    </div>
+  );
 
-      <BottomNavigation />
+  return (
+    <div className="mobile-main">
+      {/* Search Header */}
+      <div className="bg-white px-4 py-3 border-b border-lulo-border">
+        <div className="flex items-center space-x-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-lulo-gray" />
+            <Input
+              placeholder="Search your saved ideas"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 border-lulo-border rounded-full bg-lulo-light-gray"
+            />
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setViewMode(viewMode === "boards" ? "items" : "boards")}
+            className="text-lulo-gray"
+          >
+            {viewMode === "boards" ? <List className="w-5 h-5" /> : <Grid className="w-5 h-5" />}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-lulo-gray"
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="bg-white px-4 py-3 border-b border-lulo-border">
+        <div className="glass-filter-container rounded-full p-1">
+          <div className="grid grid-cols-4 gap-1">
+            <button 
+              className={`glass-filter-tab rounded-full py-2 px-3 text-xs font-medium ${
+                selectedBoard === "all" ? "glass-filter-tab-active" : ""
+              }`}
+              onClick={() => setSelectedBoard("all")}
+            >
+              All
+            </button>
+            <button 
+              className={`glass-filter-tab rounded-full py-2 px-3 text-xs font-medium ${
+                selectedBoard === "collaborative" ? "glass-filter-tab-active" : ""
+              }`}
+              onClick={() => setSelectedBoard("collaborative")}
+            >
+              Collaborative
+            </button>
+            <button 
+              className={`glass-filter-tab rounded-full py-2 px-3 text-xs font-medium ${
+                selectedBoard === "secret" ? "glass-filter-tab-active" : ""
+              }`}
+              onClick={() => setSelectedBoard("secret")}
+            >
+              Secret
+            </button>
+            <button 
+              className={`glass-filter-tab rounded-full py-2 px-3 text-xs font-medium ${
+                selectedBoard === "archived" ? "glass-filter-tab-active" : ""
+              }`}
+              onClick={() => setSelectedBoard("archived")}
+            >
+              Archived
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 bg-lulo-light-gray">
+        {viewMode === "boards" ? (
+          <MasonryLayout>
+            {filteredBoards.map((board) => (
+              <BoardCard key={board.id} board={board} />
+            ))}
+          </MasonryLayout>
+        ) : (
+          <>
+            {/* Board Header */}
+            <div className="bg-white px-4 py-3 border-b border-lulo-border">
+              <div className="flex items-center space-x-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode("boards")}
+                  className="text-lulo-gray"
+                >
+                  ← Back to Boards
+                </Button>
+                <h2 className="font-semibold text-lulo-dark">
+                  {boardsData.find(b => b.id === selectedBoard)?.name || "All Items"}
+                </h2>
+              </div>
+            </div>
+
+            {/* Items Grid */}
+            <MasonryLayout>
+              {filteredItems.map((item: WishlistItem) => (
+                <WishlistItemCard key={item.id} item={item} />
+              ))}
+            </MasonryLayout>
+          </>
+        )}
+      </div>
     </div>
   );
 }

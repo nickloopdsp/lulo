@@ -1,0 +1,1 @@
+ALTER TABLE `wishlists` ADD `folder` text;

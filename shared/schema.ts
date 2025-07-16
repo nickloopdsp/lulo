@@ -1,112 +1,124 @@
 import {
-  pgTable,
+  sqliteTable,
   text,
-  varchar,
-  timestamp,
-  jsonb,
-  index,
-  serial,
-  boolean,
   integer,
-  decimal,
-} from "drizzle-orm/pg-core";
+  real,
+  index,
+} from "drizzle-orm/sqlite-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Session storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const sessions = pgTable(
+export const sessions = sqliteTable(
   "sessions",
   {
-    sid: varchar("sid").primaryKey(),
-    sess: jsonb("sess").notNull(),
-    expire: timestamp("expire").notNull(),
+    sid: text("sid").primaryKey(),
+    sess: text("sess").notNull(),
+    expire: integer("expire").notNull(),
   },
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
 // User storage table.
 // (IMPORTANT) This table is mandatory for Replit Auth, don't drop it.
-export const users = pgTable("users", {
-  id: varchar("id").primaryKey().notNull(),
-  email: varchar("email").unique(),
-  firstName: varchar("first_name"),
-  lastName: varchar("last_name"),
-  profileImageUrl: varchar("profile_image_url"),
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey().notNull(),
+  email: text("email").unique(),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
+  profileImageUrl: text("profile_image_url"),
   bio: text("bio"),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: integer("created_at"),
+  updatedAt: integer("updated_at"),
 });
 
-export const items = pgTable("items", {
-  id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
+export const items = sqliteTable("items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
   description: text("description"),
-  price: decimal("price", { precision: 10, scale: 2 }),
-  currency: varchar("currency", { length: 3 }).default("USD"),
-  brand: varchar("brand", { length: 100 }),
-  imageUrl: varchar("image_url", { length: 500 }),
-  sourceUrl: varchar("source_url", { length: 500 }),
-  category: varchar("category", { length: 100 }),
-  addedBy: varchar("added_by").references(() => users.id),
-  isPublic: boolean("is_public").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  price: real("price"),
+  currency: text("currency").default("USD"),
+  brand: text("brand"),
+  imageUrl: text("image_url"),
+  sourceUrl: text("source_url"),
+  category: text("category"),
+  addedBy: text("added_by").references(() => users.id),
+  isPublic: integer("is_public", { mode: "boolean" }).default(true),
+  createdAt: integer("created_at"),
+  updatedAt: integer("updated_at"),
 });
 
-export const wishlists = pgTable("wishlists", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+export const wishlists = sqliteTable("wishlists", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id).notNull(),
   itemId: integer("item_id").references(() => items.id).notNull(),
+  folder: text("folder"),
   notes: text("notes"),
   priority: integer("priority").default(1), // 1-5 scale
-  visibility: varchar("visibility", { length: 20 }).default("public"), // public, private, friends
-  giftMe: boolean("gift_me").default(false),
-  createdAt: timestamp("created_at").defaultNow(),
+  visibility: text("visibility").default("public"), // public, private, friends
+  giftMe: integer("gift_me", { mode: "boolean" }).default(false),
+  createdAt: integer("created_at"),
 });
 
-export const closets = pgTable("closets", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+export const closets = sqliteTable("closets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id).notNull(),
   itemId: integer("item_id").references(() => items.id).notNull(),
   notes: text("notes"),
-  size: varchar("size", { length: 20 }),
-  condition: varchar("condition", { length: 20 }),
-  borrowable: boolean("borrowable").default(false),
-  frequency: varchar("frequency", { length: 20 }), // rarely, sometimes, often
-  createdAt: timestamp("created_at").defaultNow(),
+  size: text("size"),
+  condition: text("condition"), // new, like_new, good, fair, poor
+  borrowable: integer("borrowable", { mode: "boolean" }).default(false),
+  frequency: text("frequency"), // rarely, sometimes, often
+  color: text("color"), // primary color
+  tags: text("tags"), // JSON array of tags
+  lastWorn: integer("last_worn"),
+  wearCount: integer("wear_count").default(0),
+  purchaseDate: integer("purchase_date"),
+  purchasePrice: real("purchase_price"),
+  createdAt: integer("created_at"),
 });
 
-export const follows = pgTable("follows", {
-  id: serial("id").primaryKey(),
-  followerId: varchar("follower_id").references(() => users.id).notNull(),
-  followingId: varchar("following_id").references(() => users.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+export const follows = sqliteTable("follows", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  followerId: text("follower_id").references(() => users.id).notNull(),
+  followingId: text("following_id").references(() => users.id).notNull(),
+  createdAt: integer("created_at"),
 });
 
-export const likes = pgTable("likes", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+export const likes = sqliteTable("likes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id).notNull(),
   itemId: integer("item_id").references(() => items.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at"),
 });
 
-export const lookboards = pgTable("lookboards", {
-  id: serial("id").primaryKey(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  title: varchar("title", { length: 255 }).notNull(),
+export const lookboards = sqliteTable("lookboards", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: text("user_id").references(() => users.id).notNull(),
+  title: text("title").notNull(),
   description: text("description"),
-  imageUrl: varchar("image_url", { length: 500 }),
-  visibility: varchar("visibility", { length: 20 }).default("public"),
-  createdAt: timestamp("created_at").defaultNow(),
+  imageUrl: text("image_url"),
+  visibility: text("visibility").default("public"),
+  createdAt: integer("created_at"),
 });
 
-export const lookboardItems = pgTable("lookboard_items", {
-  id: serial("id").primaryKey(),
+export const lookboardItems = sqliteTable("lookboard_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
   lookboardId: integer("lookboard_id").references(() => lookboards.id).notNull(),
   itemId: integer("item_id").references(() => items.id).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: integer("created_at"),
+});
+
+export const priceHistory = sqliteTable("price_history", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  itemId: integer("item_id").references(() => items.id).notNull(),
+  price: real("price").notNull(),
+  currency: text("currency").default("USD"),
+  source: text("source"), // e.g., "zara.com", "amazon.com"
+  sourceUrl: text("source_url"),
+  recordedAt: integer("recorded_at"),
 });
 
 // Relations
@@ -129,6 +141,7 @@ export const itemsRelations = relations(items, ({ one, many }) => ({
   closets: many(closets),
   likes: many(likes),
   lookboardItems: many(lookboardItems),
+  priceHistory: many(priceHistory),
 }));
 
 export const wishlistsRelations = relations(wishlists, ({ one }) => ({
@@ -194,6 +207,13 @@ export const lookboardItemsRelations = relations(lookboardItems, ({ one }) => ({
   }),
 }));
 
+export const priceHistoryRelations = relations(priceHistory, ({ one }) => ({
+  item: one(items, {
+    fields: [priceHistory.itemId],
+    references: [items.id],
+  }),
+}));
+
 // Insert schemas
 export const insertItemSchema = createInsertSchema(items).omit({
   id: true,
@@ -230,3 +250,6 @@ export type Like = typeof likes.$inferSelect;
 export type Lookboard = typeof lookboards.$inferSelect;
 export type InsertLookboard = z.infer<typeof insertLookboardSchema>;
 export type LookboardItem = typeof lookboardItems.$inferSelect;
+
+export type PriceHistory = typeof priceHistory.$inferSelect;
+export type InsertPriceHistory = typeof priceHistory.$inferInsert;

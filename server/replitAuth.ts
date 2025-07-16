@@ -8,12 +8,18 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
+// For local development, make Replit auth optional
+const isLocalDevelopment = process.env.NODE_ENV === "development" && !process.env.REPLIT_DOMAINS;
+
+if (!process.env.REPLIT_DOMAINS && !isLocalDevelopment) {
   throw new Error("Environment variable REPLIT_DOMAINS not provided");
 }
 
 const getOidcConfig = memoize(
   async () => {
+    if (isLocalDevelopment) {
+      return null; // Skip OIDC in local dev
+    }
     return await client.discovery(
       new URL(process.env.ISSUER_URL ?? "https://replit.com/oidc"),
       process.env.REPL_ID!
@@ -24,6 +30,21 @@ const getOidcConfig = memoize(
 
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
+  
+  if (isLocalDevelopment) {
+    // Use memory store for local development
+    return session({
+      secret: process.env.SESSION_SECRET || "local-dev-secret",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        httpOnly: true,
+        secure: false, // Allow HTTP in development
+        maxAge: sessionTtl,
+      },
+    });
+  }
+  
   const pgStore = connectPg(session);
   const sessionStore = new pgStore({
     conString: process.env.DATABASE_URL,
@@ -72,7 +93,56 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
+  // Skip OIDC setup in local development
+  if (isLocalDevelopment) {
+    // Create a mock user for local development
+    app.get("/api/login", (req, res) => {
+      const mockUser = {
+        claims: {
+          sub: "local-dev-user",
+          email: "dev@lulo.com",
+          first_name: "Dev",
+          last_name: "User",
+          profile_image_url: null,
+        },
+        access_token: "mock-token",
+        refresh_token: null,
+        expires_at: Math.floor(Date.now() / 1000) + 3600, // 1 hour from now
+      };
+      
+      // Upsert the mock user
+      storage.upsertUser({
+        id: mockUser.claims.sub,
+        email: mockUser.claims.email,
+        firstName: mockUser.claims.first_name,
+        lastName: mockUser.claims.last_name,
+        profileImageUrl: mockUser.claims.profile_image_url,
+      });
+      
+      req.login(mockUser, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Login failed" });
+        }
+        res.redirect("/");
+      });
+    });
+
+    app.get("/api/logout", (req, res) => {
+      req.logout(() => {
+        res.redirect("/");
+      });
+    });
+
+    passport.serializeUser((user: Express.User, cb) => cb(null, user));
+    passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+    
+    return;
+  }
+
   const config = await getOidcConfig();
+  if (!config) {
+    throw new Error("OIDC configuration failed");
+  }
 
   const verify: VerifyFunction = async (
     tokens: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
@@ -117,17 +187,43 @@ export async function setupAuth(app: Express) {
 
   app.get("/api/logout", (req, res) => {
     req.logout(() => {
-      res.redirect(
-        client.buildEndSessionUrl(config, {
-          client_id: process.env.REPL_ID!,
-          post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
-        }).href
-      );
+      if (config) {
+        res.redirect(
+          client.buildEndSessionUrl(config, {
+            client_id: process.env.REPL_ID!,
+            post_logout_redirect_uri: `${req.protocol}://${req.hostname}`,
+          }).href
+        );
+      } else {
+        res.redirect("/");
+      }
     });
   });
 }
 
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  // Skip auth check in local development
+  if (isLocalDevelopment) {
+    // Auto-login for local development
+    if (!req.user) {
+      const mockUser = {
+        claims: {
+          sub: "local-dev-user",
+          email: "dev@lulo.com",
+          first_name: "Dev",
+          last_name: "User",
+          profile_image_url: null,
+        },
+        access_token: "mock-token",
+        refresh_token: null,
+        expires_at: Math.floor(Date.now() / 1000) + 3600,
+      };
+      
+      req.user = mockUser;
+    }
+    return next();
+  }
+
   const user = req.user as any;
 
   if (!req.isAuthenticated() || !user.expires_at) {
@@ -147,6 +243,10 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
 
   try {
     const config = await getOidcConfig();
+    if (!config) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
     const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
     updateUserSession(user, tokenResponse);
     return next();

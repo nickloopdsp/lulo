@@ -35,19 +35,44 @@ export default function AddItem() {
   const queryClient = useQueryClient();
   const [addMethod, setAddMethod] = useState<"manual" | "camera" | "link" | null>(null);
 
+  // Check for pre-filled data from image recognition
+  const urlParams = new URLSearchParams(window.location.search);
+  const prefillData = urlParams.get('prefill');
+  let initialData = {
+    name: "",
+    description: "",
+    price: "",
+    currency: "USD",
+    brand: "",
+    imageUrl: "",
+    sourceUrl: "",
+    category: "",
+    isPublic: true,
+  };
+
+  if (prefillData) {
+    try {
+      const parsedData = JSON.parse(decodeURIComponent(prefillData));
+      initialData = {
+        ...initialData,
+        name: parsedData.name || "",
+        brand: parsedData.brand || "",
+        price: parsedData.price ? parsedData.price.toString() : "",
+        category: parsedData.category || "",
+        imageUrl: parsedData.imageUrl || "",
+      };
+      // Auto-set to manual mode if we have pre-filled data
+      if (!addMethod) {
+        setAddMethod("manual");
+      }
+    } catch (error) {
+      console.error("Error parsing prefill data:", error);
+    }
+  }
+
   const form = useForm<AddItemForm>({
     resolver: zodResolver(addItemSchema),
-    defaultValues: {
-      name: "",
-      description: "",
-      price: "",
-      currency: "USD",
-      brand: "",
-      imageUrl: "",
-      sourceUrl: "",
-      category: "",
-      isPublic: true,
-    },
+    defaultValues: initialData,
   });
 
   const createItemMutation = useMutation({
