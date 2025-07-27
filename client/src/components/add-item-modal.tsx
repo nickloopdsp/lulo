@@ -1,92 +1,595 @@
 import { useState } from "react";
-import { Camera, Link, Plus, X } from "lucide-react";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Camera, Link, Plus, Heart, ShoppingBag, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
-import ImageRecognition from "./image-recognition";
+import { apiRequest } from "@/lib/queryClient";
+
+const addItemSchema = z.object({
+  name: z.string().min(1, "Item name is required"),
+  description: z.string().optional(),
+  price: z.string().optional(),
+  currency: z.string().default("USD"),
+  brand: z.string().optional(),
+  imageUrl: z.string().optional(),
+  sourceUrl: z.string().optional(),
+  category: z.string().optional(),
+  isPublic: z.boolean().default(true),
+  destination: z.enum(["wishlist", "closet"]).default("wishlist"),
+  folder: z.string().optional(),
+});
+
+type AddItemForm = z.infer<typeof addItemSchema>;
 
 interface AddItemModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
+  prefillData?: Partial<AddItemForm>;
 }
 
-export default function AddItemModal({ open, onOpenChange }: AddItemModalProps) {
+export default function AddItemModal({ onSuccess, prefillData = {} }: AddItemModalProps) {
   const { toast } = useToast();
-  const [, navigate] = useLocation();
-  const [showImageRecognition, setShowImageRecognition] = useState(false);
+  const queryClient = useQueryClient();
+  const [addMethod, setAddMethod] = useState<"manual" | "camera" | "link" | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
+  const [isScrapingLink, setIsScrapingLink] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
+  const [isCreatingNewFolder, setIsCreatingNewFolder] = useState(false);
+
+  // Query for existing wishlist folders
+  const { data: existingFolders = [] } = useQuery({
+    queryKey: ['/api/wishlist/folders'],
+    enabled: true,
+  }) as { data: string[] };
+
+  const initialData = {
+    name: "",
+    description: "",
+    price: "",
+    currency: "USD",
+    brand: "",
+    imageUrl: "",
+    sourceUrl: "",
+    category: "",
+    isPublic: true,
+    destination: "wishlist" as const,
+    folder: "none",
+    ...prefillData,
+  };
+
+  const form = useForm<AddItemForm>({
+    resolver: zodResolver(addItemSchema),
+    defaultValues: initialData,
+  });
+
+  const createItemMutation = useMutation({
+    mutationFn: async (data: AddItemForm) => {
+      // Step 1: Create the item
+      const itemPayload = {
+        name: data.name,
+        description: data.description || "",
+        price: data.price ? parseFloat(data.price) : undefined,
+        currency: data.currency,
+        brand: data.brand || "",
+        imageUrl: data.imageUrl || "",
+        sourceUrl: data.sourceUrl || "",
+        category: data.category || "",
+        isPublic: data.isPublic,
+      };
+      
+      const response = await apiRequest("POST", "/api/items", itemPayload);
+      const createdItem = await response.json();
+      
+      // Step 2: Add to wishlist or closet
+      const destination = data.destination;
+      const endpoint = destination === "wishlist" ? "/api/wishlist" : "/api/closet";
+      
+      if (destination === "wishlist") {
+        const wishlistPayload = {
+          itemId: createdItem.id,
+          folder: data.folder && data.folder !== "" ? data.folder : null,
+        };
+        await apiRequest("POST", endpoint, wishlistPayload);
+      } else {
+        const closetPayload = {
+          itemId: createdItem.id,
+        };
+        await apiRequest("POST", endpoint, closetPayload);
+      }
+      
+      return { item: createdItem, destination };
+    },
+    onSuccess: (result) => {
+      toast({
+        title: "Success!",
+        description: `Item added to your ${result.destination}`,
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/${result.destination}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wishlist/folders"] });
+      if (onSuccess) onSuccess();
+    },
+    onError: (error) => {
+      toast({
+        title: "Error adding item",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: AddItemForm) => {
+    if (isCreatingNewFolder && newFolderName) {
+      data.folder = newFolderName;
+    } else if (data.folder === "none") {
+      data.folder = "";
+    }
+    createItemMutation.mutate(data);
+  };
 
   const handleCameraCapture = () => {
-    onOpenChange(false);
-    setShowImageRecognition(true);
+    toast({
+      title: "Camera feature",
+      description: "Camera integration would be implemented here",
+    });
   };
 
-  const handleItemFound = (item: any) => {
-    // Navigate to add-item page with pre-filled data
-    navigate(`/add-item?prefill=${encodeURIComponent(JSON.stringify(item))}`);
-    setShowImageRecognition(false);
+  const handleLinkParse = async () => {
+    if (!linkUrl) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid URL",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsScrapingLink(true);
+    try {
+      const response = await fetch('/api/products/scrape-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkUrl }),
+      });
+
+      if (!response.ok) throw new Error('Failed to scrape URL');
+
+      const scrapedData = await response.json();
+      
+      form.setValue('name', scrapedData.name || '');
+      form.setValue('brand', scrapedData.brand || '');
+      form.setValue('price', scrapedData.price?.replace(/[^0-9.]/g, '') || '');
+      form.setValue('description', scrapedData.description || '');
+      form.setValue('category', scrapedData.category || '');
+      form.setValue('imageUrl', scrapedData.imageUrl || '');
+      form.setValue('sourceUrl', scrapedData.sourceUrl || linkUrl);
+      
+      setAddMethod("manual");
+      
+      toast({
+        title: "Success",
+        description: "Product information extracted successfully!",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to extract product information. Please try manual entry.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsScrapingLink(false);
+    }
   };
 
-  const handleLinkAdd = () => {
-    onOpenChange(false);
-    navigate("/add-item");
-  };
-
-  const handleManualAdd = () => {
-    onOpenChange(false);
-    navigate("/add-item");
-  };
+  const currentDestination = form.watch('destination');
 
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md mx-4 rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-center">Add to Lulo</DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
+    <div className="w-full max-w-md">
+      {!addMethod ? (
+        <div className="space-y-4">
+          <div className="text-center mb-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Add Item</h3>
+            <p className="text-sm text-gray-600">Choose how you want to add this item</p>
+          </div>
+
+          <div className="space-y-3">
             <Button
-              className="w-full bg-lulo-pink hover:bg-lulo-coral text-white p-4 rounded-xl flex items-center justify-center space-x-3 h-auto"
-              onClick={handleCameraCapture}
+              className="w-full bg-lulo-pink hover:bg-lulo-coral text-white p-4 rounded-xl flex items-center justify-center space-x-3"
+              onClick={() => setAddMethod("camera")}
             >
               <Camera className="w-5 h-5" />
-              <div className="text-left">
-                <div className="font-medium">Take Photo</div>
-                <div className="text-sm opacity-90">AI-powered item recognition</div>
-              </div>
+              <span>Take Photo</span>
             </Button>
-            
+
             <Button
-              className="w-full bg-lulo-sage hover:bg-lulo-sage/90 text-white p-4 rounded-xl flex items-center justify-center space-x-3 h-auto"
-              onClick={handleLinkAdd}
+              className="w-full bg-lulo-sage hover:bg-lulo-sage/90 text-white p-4 rounded-xl flex items-center justify-center space-x-3"
+              onClick={() => setAddMethod("link")}
             >
               <Link className="w-5 h-5" />
-              <div className="text-left">
-                <div className="font-medium">Add Link</div>
-                <div className="text-sm opacity-90">Paste a product URL</div>
-              </div>
+              <span>Add from Link</span>
             </Button>
-            
+
             <Button
-              className="w-full bg-lulo-coral hover:bg-lulo-coral/90 text-white p-4 rounded-xl flex items-center justify-center space-x-3 h-auto"
-              onClick={handleManualAdd}
+              className="w-full bg-lulo-coral hover:bg-lulo-coral/90 text-white p-4 rounded-xl flex items-center justify-center space-x-3"
+              onClick={() => setAddMethod("manual")}
             >
               <Plus className="w-5 h-5" />
-              <div className="text-left">
-                <div className="font-medium">Add Manually</div>
-                <div className="text-sm opacity-90">Enter details yourself</div>
-              </div>
+              <span>Add Manually</span>
             </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+        </div>
+      ) : addMethod === "camera" ? (
+        <div className="text-center space-y-4">
+          <div className="w-24 h-24 bg-gray-100 rounded-xl mx-auto flex items-center justify-center">
+            <Camera className="w-12 h-12 text-gray-400" />
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold mb-2">Camera Access</h4>
+            <p className="text-sm text-gray-600 mb-4">
+              Take a photo of the item you want to add
+            </p>
+            <Button
+              onClick={handleCameraCapture}
+              className="bg-lulo-pink hover:bg-lulo-coral text-white mb-2"
+            >
+              Open Camera
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setAddMethod("manual")}
+            className="w-full"
+          >
+            Add Details Manually Instead
+          </Button>
+        </div>
+      ) : addMethod === "link" ? (
+        <div className="space-y-4">
+          <div className="text-center">
+            <h4 className="text-lg font-semibold mb-2">Add from Link</h4>
+            <p className="text-sm text-gray-600">
+              Paste a product URL and we'll extract the details
+            </p>
+          </div>
+          <div className="space-y-3">
+            <Input
+              placeholder="https://example.com/product"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleLinkParse();
+                }
+              }}
+            />
+            <Button
+              onClick={handleLinkParse}
+              disabled={isScrapingLink}
+              className="w-full bg-lulo-sage hover:bg-lulo-sage/90 text-white"
+            >
+              {isScrapingLink ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Extracting...
+                </>
+              ) : (
+                'Parse Link'
+              )}
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => setAddMethod("manual")}
+            className="w-full"
+          >
+            Add Details Manually Instead
+          </Button>
+        </div>
+      ) : (
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {/* Destination Selection */}
+            <div className="space-y-3">
+              <h4 className="font-semibold">Where to save?</h4>
+              <FormField
+                control={form.control}
+                name="destination"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-row gap-6"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="wishlist" id="wishlist" />
+                          <Label htmlFor="wishlist" className="flex items-center cursor-pointer">
+                            <Heart className="w-4 h-4 mr-2 text-lulo-pink" />
+                            Wishlist
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="closet" id="closet" />
+                          <Label htmlFor="closet" className="flex items-center cursor-pointer">
+                            <ShoppingBag className="w-4 h-4 mr-2 text-lulo-sage" />
+                            Closet
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
-      <ImageRecognition
-        open={showImageRecognition}
-        onOpenChange={setShowImageRecognition}
-        onItemFound={handleItemFound}
-      />
-    </>
+            {/* Folder Selection for Wishlist */}
+            {currentDestination === "wishlist" && (
+              <div className="space-y-3">
+                <FormField
+                  control={form.control}
+                  name="folder"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Folder (Optional)</FormLabel>
+                      <FormControl>
+                        <Select 
+                          onValueChange={(value) => {
+                            if (value === "new_folder") {
+                              setIsCreatingNewFolder(true);
+                              field.onChange("");
+                            } else {
+                              setIsCreatingNewFolder(false);
+                              field.onChange(value);
+                            }
+                          }} 
+                          defaultValue={field.value}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose folder..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No Folder</SelectItem>
+                            {existingFolders.map((folder: string) => (
+                              <SelectItem key={folder} value={folder}>
+                                {folder}
+                              </SelectItem>
+                            ))}
+                            <SelectItem value="new_folder">+ Create New Folder</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {isCreatingNewFolder && (
+                  <div className="space-y-2">
+                    <Label htmlFor="newFolder">New Folder Name</Label>
+                    <Input
+                      id="newFolder"
+                      placeholder="Enter folder name..."
+                      value={newFolderName}
+                      onChange={(e) => setNewFolderName(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Preview image if available */}
+              {form.watch('imageUrl') && (
+                <div>
+                  <img 
+                    src={form.watch('imageUrl')} 
+                    alt={form.watch('name') || 'Product preview'}
+                    className="w-full h-32 object-cover rounded-lg"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = '/api/placeholder/400/300';
+                    }}
+                  />
+                </div>
+              )}
+
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Item Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="White Summer Dress" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe the item..."
+                        className="min-h-[60px]"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-3">
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Price</FormLabel>
+                      <FormControl>
+                        <Input placeholder="89.99" type="number" step="0.01" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="currency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Currency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="USD" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="brand"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Brand</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Zara" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="category"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="clothing">Clothing</SelectItem>
+                        <SelectItem value="shoes">Shoes</SelectItem>
+                        <SelectItem value="accessories">Accessories</SelectItem>
+                        <SelectItem value="jewelry">Jewelry</SelectItem>
+                        <SelectItem value="bags">Bags</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="imageUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Image URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://example.com/image.jpg" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sourceUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source URL</FormLabel>
+                    <FormControl>
+                      <Input placeholder="https://store.com/product" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isPublic"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between space-y-0">
+                    <div>
+                      <FormLabel>Make this item public</FormLabel>
+                      <p className="text-xs text-gray-500">
+                        Allow others to discover this item
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex space-x-3 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setAddMethod(null)}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                type="submit"
+                disabled={createItemMutation.isPending}
+                className="flex-1 bg-lulo-pink hover:bg-lulo-coral text-white"
+              >
+                {createItemMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  `Add to ${currentDestination === 'wishlist' ? 'Wishlist' : 'Closet'}`
+                )}
+              </Button>
+            </div>
+          </form>
+        </Form>
+      )}
+    </div>
   );
 }

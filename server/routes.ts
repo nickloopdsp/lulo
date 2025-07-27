@@ -6,6 +6,7 @@ import { insertItemSchema, insertWishlistSchema, insertClosetSchema } from "@sha
 import { z } from "zod";
 import { aiImageAnalysisService } from "./services/aiImageAnalysis";
 import { productSearchService } from "./services/productSearchService";
+import { FashionNewsService } from "./services/fashionNewsService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -73,10 +74,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const wishlist = await storage.getUserWishlist(userId);
+      
+      // Prevent caching to ensure fresh data after modifications
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       res.json(wishlist);
     } catch (error) {
       console.error("Error fetching wishlist:", error);
       res.status(500).json({ message: "Failed to fetch wishlist" });
+    }
+  });
+
+  // Get wishlist folders
+  app.get('/api/wishlist/folders', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const folders = await storage.getUserWishlistFolders(userId);
+      
+      // Prevent caching to ensure fresh data after modifications
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
+      res.json(folders);
+    } catch (error) {
+      console.error("Error fetching wishlist folders:", error);
+      res.status(500).json({ message: "Failed to fetch wishlist folders" });
     }
   });
 
@@ -122,6 +147,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating wishlist item:", error);
       res.status(500).json({ message: "Failed to update wishlist item" });
+    }
+  });
+
+  // Delete wishlist folder
+  app.delete('/api/wishlist/folders/:folderName', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const folderName = decodeURIComponent(req.params.folderName);
+      await storage.deleteWishlistFolder(userId, folderName);
+      res.json({ message: "Folder deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting wishlist folder:", error);
+      res.status(500).json({ message: "Failed to delete folder" });
     }
   });
 
@@ -586,6 +624,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Fashion News routes
+  app.get('/api/fashion-news', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const region = req.query.region as string || 'global';
+      
+      console.log("Fetching fashion news for user:", userId, "region:", region);
+      const fashionNews = await FashionNewsService.getFashionNews(userId, region);
+      console.log("Fashion news result count:", fashionNews.length);
+      res.json(fashionNews);
+    } catch (error) {
+      console.error("Error fetching fashion news:", error);
+      res.status(500).json({ message: "Failed to fetch fashion news" });
+    }
+  });
+
+  app.get('/api/fashion-news/trending-topics', async (req, res) => {
+    try {
+      const trendingTopics = await FashionNewsService.getTrendingTopics();
+      res.json(trendingTopics);
+    } catch (error) {
+      console.error("Error fetching trending topics:", error);
+      res.status(500).json({ message: "Failed to fetch trending topics" });
+    }
+  });
+
   // AI Image Analysis routes
   app.post('/api/ai/analyze-image', isAuthenticated, async (req: any, res) => {
     try {
@@ -637,6 +701,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error searching retailers:", error);
       res.status(500).json({ message: "Failed to search retailers" });
+    }
+  });
+
+  // Link scraping endpoint
+  app.post('/api/products/scrape-url', isAuthenticated, async (req: any, res) => {
+    try {
+      const { url } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ message: "URL is required" });
+      }
+      
+      // Basic URL validation
+      try {
+        new URL(url);
+      } catch {
+        return res.status(400).json({ message: "Invalid URL format" });
+      }
+      
+      console.log(`Scraping product from URL: ${url}`);
+      
+      // Use the productSearchService to handle URL scraping
+      const scrapedData = await productSearchService.scrapeProductFromUrl(url);
+      
+      // Ensure consistent data format
+      const formattedData = {
+        id: scrapedData.id || Date.now().toString(),
+        name: scrapedData.name || '',
+        brand: scrapedData.brand || '',
+        price: scrapedData.price || '',
+        originalPrice: scrapedData.originalPrice,
+        description: scrapedData.description || '',
+        category: scrapedData.category || 'clothing',
+        imageUrl: scrapedData.imageUrl || '',
+        sourceUrl: scrapedData.sourceUrl || url,
+        color: scrapedData.color,
+        sizes: scrapedData.sizes || [],
+        material: scrapedData.material,
+      };
+      
+      res.json(formattedData);
+    } catch (error) {
+      console.error("Error scraping URL:", error);
+      
+      // Send more specific error messages
+      if (error instanceof Error) {
+        if (error.message.includes('timeout')) {
+          res.status(504).json({ message: "Request timeout - the page took too long to load" });
+        } else if (error.message.includes('not found')) {
+          res.status(404).json({ message: "Product page not found" });
+        } else {
+          res.status(500).json({ message: error.message || "Failed to scrape product information from URL" });
+        }
+      } else {
+        res.status(500).json({ message: "Failed to scrape product information from URL" });
+      }
     }
   });
 

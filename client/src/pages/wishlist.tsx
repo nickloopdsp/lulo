@@ -7,8 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ItemImage } from "@/components/ui/item-image";
 import MasonryLayout from "@/components/masonry-layout";
+import AddItemModal from "@/components/add-item-modal";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -40,6 +42,9 @@ export default function Wishlist() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBoard, setSelectedBoard] = useState("all");
   const [viewMode, setViewMode] = useState<"boards" | "items">("boards");
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [folderToDelete, setFolderToDelete] = useState<string | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -48,6 +53,46 @@ export default function Wishlist() {
     queryKey: ["/api/wishlist"],
   });
 
+  const deleteFolderMutation = useMutation({
+    mutationFn: async (folderName: string) => {
+      return await apiRequest('DELETE', `/api/wishlist/folders/${encodeURIComponent(folderName)}`);
+    },
+    onSuccess: () => {
+      // Invalidate multiple related queries to ensure UI updates
+      queryClient.invalidateQueries({ queryKey: ["/api/wishlist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wishlist/folders"] });
+      
+      // Force a hard refresh by removing all cached data and refetching
+      queryClient.removeQueries({ queryKey: ["/api/wishlist"] });
+      queryClient.refetchQueries({ queryKey: ["/api/wishlist"] });
+      
+      toast({
+        title: "Folder deleted",
+        description: "The folder and all its items have been removed from your wishlist.",
+      });
+      setDeleteDialogOpen(false);
+      setFolderToDelete(null);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete folder. Please try again.",
+        variant: "destructive",
+      });
+         },
+   });
+
+  const handleDeleteFolder = (folderName: string) => {
+    setFolderToDelete(folderName);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteFolder = () => {
+    if (folderToDelete) {
+      deleteFolderMutation.mutate(folderToDelete);
+    }
+  };
+
   // Generate boards data from real wishlist items
   const generateBoardsFromWishlist = (items: WishlistItem[]) => {
     const folderCounts: { [key: string]: number } = {};
@@ -55,7 +100,7 @@ export default function Wishlist() {
     
     // Count items per folder and collect first item for cover image
     items.forEach((wishlistItem: WishlistItem) => {
-      const folder = wishlistItem.folder || 'uncategorized';
+      const folder = (wishlistItem.folder && wishlistItem.folder.trim()) || 'uncategorized';
       folderCounts[folder] = (folderCounts[folder] || 0) + 1;
       if (!folderItems[folder]) {
         folderItems[folder] = [];
@@ -203,7 +248,13 @@ export default function Wishlist() {
                 <Edit className="w-4 h-4 mr-2" />
                 Edit Board
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-red-600">
+              <DropdownMenuItem 
+                className="text-red-600"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteFolder(board.name);
+                }}
+              >
                 <Trash2 className="w-4 h-4 mr-2" />
                 Delete Board
               </DropdownMenuItem>
@@ -247,13 +298,25 @@ export default function Wishlist() {
           >
             {viewMode === "boards" ? <List className="w-5 h-5" /> : <Grid className="w-5 h-5" />}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-lulo-gray"
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
+          <div className="relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-lulo-gray hover:text-lulo-dark hover:bg-gray-100"
+              onClick={() => {
+                console.log("Wishlist plus button clicked!");
+                setShowAddModal(!showAddModal);
+              }}
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
+            
+            {showAddModal && (
+              <div className="absolute top-12 right-0 z-50 w-80 p-4 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto">
+                <AddItemModal onSuccess={() => setShowAddModal(false)} />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -333,6 +396,27 @@ export default function Wishlist() {
           </>
         )}
       </div>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Board</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete the "{folderToDelete}" board? This will remove all items in this board from your wishlist. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteFolder}
+              disabled={deleteFolderMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleteFolderMutation.isPending ? "Deleting..." : "Delete Board"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

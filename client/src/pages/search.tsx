@@ -1,296 +1,243 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Search as SearchIcon, Filter, X, TrendingUp, Clock, ExternalLink, BookOpen } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Search as SearchIcon, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel";
 import MasonryLayout from "@/components/masonry-layout";
-import ItemCard from "@/components/item-card";
+import ArticleViewer from "@/components/article-viewer";
+
+interface FashionArticle {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl: string;
+  articleUrl: string;
+  source: string;
+  category: string;
+  publishedDate: string;
+  readTime: string;
+  relevanceScore?: number;
+}
 
 export default function Search() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showFilters, setShowFilters] = useState(false);
-  const [selectedTab, setSelectedTab] = useState("online");
+  const [selectedTab, setSelectedTab] = useState("global");
+  const [selectedRegion, setSelectedRegion] = useState("go global");
+  const [selectedArticle, setSelectedArticle] = useState<FashionArticle | null>(null);
 
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ["/api/items"],
+  const { data: fashionNews = [], isLoading } = useQuery<FashionArticle[]>({
+    queryKey: ["api", "fashion-news", selectedRegion],
+    queryFn: async () => {
+      const response = await fetch(`/api/fashion-news?region=${selectedRegion}`, {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error("Failed to fetch fashion news");
+      return response.json();
+    },
   });
 
-  // Mock magazine content data
-  const mockMagazineContent = [
-    {
-      id: 1,
-      type: "banner",
-      title: "Banner title",
-      description: "Featured content",
-      image: "/api/placeholder/350/200",
-      category: "Featured"
+  const { data: trendingTopics = [] } = useQuery<string[]>({
+    queryKey: ["api", "fashion-news", "trending-topics"],
+    queryFn: async () => {
+      const response = await fetch("/api/fashion-news/trending-topics", {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error("Failed to fetch trending topics");
+      return response.json();
     },
-    {
-      id: 2,
-      type: "article",
-      title: "Young Mexican Americans Are Reclaiming Style as Resistance",
-      description: "Exploring cultural identity through fashion choices",
-      image: "/api/placeholder/200/250",
-      category: "Culture",
-      readTime: "5 min read",
-      author: "Fashion Writer"
-    },
-    {
-      id: 3,
-      type: "article",
-      title: "Where Vogue Editors Are Traveling This Summer— And What They're Packing",
-      description: "Travel style inspiration from the editors",
-      image: "/api/placeholder/200/280",
-      category: "Travel",
-      readTime: "8 min read",
-      author: "Vogue Editors"
-    },
-    {
-      id: 4,
-      type: "article",
-      title: "All the Best Celebrity Fashions at Wimbledon 2025",
-      description: "Court-side style moments from the tennis tournament",
-      image: "/api/placeholder/200/260",
-      category: "Celebrity",
-      readTime: "6 min read",
-      author: "Style Reporter"
-    },
-    {
-      id: 5,
-      type: "article",
-      title: "All the Stars On the Front Row of Couture Week",
-      description: "Front row fashion at Paris Haute Couture",
-      image: "/api/placeholder/200/300",
-      category: "Fashion Week",
-      readTime: "7 min read",
-      author: "Fashion Insider"
-    }
+  });
+
+  // Mock banner ads for carousel
+  const bannerAds = [
+    { id: 1, image: "/api/placeholder/350/150", title: "AD SPACE/BANNER" },
+    { id: 2, image: "/api/placeholder/350/150", title: "AD SPACE/BANNER" },
+    { id: 3, image: "/api/placeholder/350/150", title: "AD SPACE/BANNER" },
+    { id: 4, image: "/api/placeholder/350/150", title: "AD SPACE/BANNER" },
+    { id: 5, image: "/api/placeholder/350/150", title: "AD SPACE/BANNER" },
   ];
 
-  // Mock product collections
-  const mockProductCollections = [
-    {
-      id: 1,
-      name: "Reformation",
-      description: "Dress Name",
-      image: "/api/placeholder/150/200",
-      category: "Pieces"
-    },
-    {
-      id: 2,
-      name: "Dries Van Noten",
-      description: "Clutch Name",
-      image: "/api/placeholder/150/200",
-      category: "Pieces"
-    },
-    {
-      id: 3,
-      name: "Sam Edelman",
-      description: "Heels",
-      image: "/api/placeholder/150/200",
-      category: "Pieces"
+  // Group articles by source for better display
+  const groupedArticles = fashionNews.reduce((acc, article) => {
+    if (!acc[article.source]) {
+      acc[article.source] = [];
     }
-  ];
+    acc[article.source].push(article);
+    return acc;
+  }, {} as Record<string, FashionArticle[]>);
 
-  // Mock wishlist collections
-  const mockWishlistCollections = [
-    {
-      id: 1,
-      name: "South of France",
-      description: "Summer vacation vibes",
-      image: "/api/placeholder/150/200",
-      category: "Wishlists"
-    },
-    {
-      id: 2,
-      name: "4th of July",
-      description: "Patriotic style",
-      image: "/api/placeholder/150/200",
-      category: "Wishlists"
-    }
-  ];
-
-  const filteredItems = (items as any[]).filter((item: any) =>
-    item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.category?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const MagazineCard = ({ article }: { article: any }) => {
-    if (article.type === "banner") {
-      return (
-        <div className="masonry-item">
-          <div className="relative">
-            <img 
-              src={article.image}
-              alt={article.title}
-              className="w-full h-48 object-cover rounded-2xl"
-            />
-            <div className="absolute inset-0 bg-black bg-opacity-40 rounded-2xl flex items-center justify-center">
-              <h2 className="text-white text-xl font-bold">{article.title}</h2>
-            </div>
-          </div>
-        </div>
-      );
-    }
+  const ArticleCard = ({ article }: { article: FashionArticle }) => {
+    // Create a collage of images for the article card
+    const imageUrls = [
+      article.imageUrl,
+      "/api/placeholder/150/150",
+      "/api/placeholder/150/150",
+      "/api/placeholder/150/150",
+    ];
 
     return (
-      <div className="masonry-item group cursor-pointer">
-        <div className="relative">
+      <div 
+        className="masonry-item bg-white rounded-2xl overflow-hidden pinterest-shadow cursor-pointer"
+        onClick={() => setSelectedArticle(article)}
+      >
+        {/* Image Collage */}
+        <div className="grid grid-cols-2 gap-0.5 p-2">
+          <div className="col-span-2">
+            <img 
+              src={imageUrls[0]}
+              alt={article.title}
+              className="w-full h-32 object-cover rounded-lg"
+            />
+          </div>
           <img 
-            src={article.image}
-            alt={article.title}
-            className="w-full h-auto object-cover rounded-t-2xl"
+            src={imageUrls[1]}
+            alt=""
+            className="w-full h-20 object-cover rounded-lg"
           />
-          <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 w-8 p-0 bg-black bg-opacity-50 hover:bg-opacity-70 text-white rounded-full"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </Button>
-          </div>
+          <img 
+            src={imageUrls[2]}
+            alt=""
+            className="w-full h-20 object-cover rounded-lg"
+          />
         </div>
+
+        {/* Content */}
         <div className="p-3">
-          <Badge variant="secondary" className="text-xs mb-2">
-            {article.category}
-          </Badge>
-          <h3 className="font-semibold text-sm text-lulo-dark mb-2 line-clamp-2">
-            {article.title}
+          <h3 className="font-bold text-xs text-lulo-dark mb-2">
+            {article.source.toUpperCase()}
           </h3>
-          <p className="text-xs text-lulo-gray mb-2 line-clamp-2">
-            {article.description}
+          <p className="text-xs text-lulo-dark line-clamp-3">
+            {article.description || `Header of the article, or beginning xx characters of the piece for a short description of the trend.`}
           </p>
-          <div className="flex items-center justify-between text-xs text-lulo-gray">
-            <span>{article.author}</span>
-            <span>{article.readTime}</span>
-          </div>
         </div>
       </div>
     );
   };
 
-  const ProductCard = ({ product }: { product: any }) => (
-    <div className="bg-white rounded-2xl overflow-hidden pinterest-shadow">
-      <img 
-        src={product.image}
-        alt={product.name}
-        className="w-full h-40 object-cover"
-      />
-      <div className="p-3">
-        <p className="text-xs text-lulo-gray mb-1">{product.name}</p>
-        <h3 className="font-medium text-sm text-lulo-dark">{product.description}</h3>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="mobile-main">
+    <div className="mobile-main bg-lulo-light-gray">
       {/* Header */}
       <div className="bg-white px-4 py-3 border-b border-lulo-border">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-xl font-semibold text-lulo-dark">Discover</h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="text-lulo-gray"
-          >
-            <Filter className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center space-x-4">
+            <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+              <TabsList className="bg-transparent p-0 h-auto space-x-4">
+                <TabsTrigger 
+                  value="global" 
+                  className="px-0 pb-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-lulo-dark data-[state=active]:border-b-2 data-[state=active]:border-lulo-dark rounded-none text-lulo-gray"
+                >
+                  Global News
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="trends" 
+                  className="px-0 pb-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-lulo-dark data-[state=active]:border-b-2 data-[state=active]:border-lulo-dark rounded-none text-lulo-gray"
+                >
+                  Lulo Trends
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+          
+          <button className="p-2">
+            <SearchIcon className="w-5 h-5 text-lulo-dark" />
+          </button>
         </div>
-        
-        <div className="relative">
-          <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-lulo-gray" />
-          <Input
-            placeholder="Search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 border-lulo-border rounded-full bg-lulo-light-gray"
-          />
-        </div>
-      </div>
 
-      {/* Tabs */}
-      <div className="bg-white border-b border-lulo-border">
-        <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2 bg-white border-b border-lulo-border">
-            <TabsTrigger value="online" className="text-sm">
-              Online
-            </TabsTrigger>
-            <TabsTrigger value="lulo" className="text-sm">
-              Lulo
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Region Selector */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-sm text-lulo-dark flex items-center space-x-1 px-0"
+        >
+          <span>{selectedRegion}</span>
+          <ChevronDown className="w-4 h-4" />
+        </Button>
       </div>
 
       {/* Content */}
-      <div className="bg-lulo-light-gray flex-1">
-        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
-          <TabsContent value="online" className="m-0">
-            {searchQuery ? (
-              // Search Results
-              <div className="p-4">
-                <p className="text-sm text-lulo-gray mb-4">
-                  {filteredItems.length} results for "{searchQuery}"
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  {filteredItems.map((item: any) => (
-                    <ItemCard key={item.id} item={item} />
+      <div className="pb-20">
+        <Tabs value={selectedTab}>
+          <TabsContent value="global" className="m-0">
+            {/* Banner Carousel */}
+            <div className="px-4 py-4">
+              <Carousel className="w-full">
+                <CarouselContent>
+                  {bannerAds.map((ad) => (
+                    <CarouselItem key={ad.id}>
+                      <div className="relative">
+                        <img 
+                          src={ad.image}
+                          alt={ad.title}
+                          className="w-full h-40 object-cover rounded-2xl"
+                        />
+                        <div className="absolute inset-0 bg-black bg-opacity-40 rounded-2xl flex items-center justify-center">
+                          <h2 className="text-white text-lg font-semibold">{ad.title}</h2>
+                        </div>
+                      </div>
+                    </CarouselItem>
                   ))}
-                </div>
+                </CarouselContent>
+              </Carousel>
+            </div>
+
+            {/* Fashion Articles */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-lulo-dark"></div>
               </div>
             ) : (
-              // Magazine Content
               <MasonryLayout>
-                {mockMagazineContent.map((article) => (
-                  <MagazineCard key={article.id} article={article} />
+                {fashionNews.map((article) => (
+                  <ArticleCard key={article.id} article={article} />
                 ))}
               </MasonryLayout>
             )}
           </TabsContent>
-          
-          <TabsContent value="lulo" className="m-0">
+
+          <TabsContent value="trends" className="m-0">
             <div className="p-4">
-              {/* Pieces Section */}
+              {/* Trending Topics */}
               <div className="mb-6">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-lulo-dark">Pieces</h2>
-                  <Button variant="ghost" size="sm" className="text-lulo-gray">
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {mockProductCollections.map((product) => (
-                    <ProductCard key={product.id} product={product} />
+                <h2 className="font-semibold text-lulo-dark mb-3">Trending Now</h2>
+                <div className="flex flex-wrap gap-2">
+                  {trendingTopics.map((topic) => (
+                    <Badge 
+                      key={topic} 
+                      variant="secondary"
+                      className="bg-lulo-light-gray text-lulo-dark border-lulo-border"
+                    >
+                      {topic}
+                    </Badge>
                   ))}
                 </div>
               </div>
 
-              {/* Wishlists Section */}
+              {/* Curated Lulo Trends */}
               <div>
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-lulo-dark">Wishlists</h2>
-                  <Button variant="ghost" size="sm" className="text-lulo-gray">
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  {mockWishlistCollections.map((wishlist) => (
-                    <ProductCard key={wishlist.id} product={wishlist} />
-                  ))}
-                </div>
+                <h2 className="font-semibold text-lulo-dark mb-3">Based on Your Style</h2>
+                <MasonryLayout>
+                  {fashionNews
+                    .filter(article => article.relevanceScore && article.relevanceScore > 0.7)
+                    .map((article) => (
+                      <ArticleCard key={article.id} article={article} />
+                    ))}
+                </MasonryLayout>
               </div>
             </div>
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Article Viewer */}
+      {selectedArticle && (
+        <ArticleViewer
+          articleUrl={selectedArticle.articleUrl}
+          title={selectedArticle.title}
+          source={selectedArticle.source}
+          onClose={() => setSelectedArticle(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import axios from "axios";
+import * as cheerio from "cheerio";
+import { realTimeSearchService } from "./realTimeSearchService";
 
 // Initialize OpenAI client lazily
 let openai: OpenAI | null = null;
@@ -28,6 +31,8 @@ export interface RetailerResult {
   shipping?: string;
   note?: string;
   region?: string;
+  lastChecked?: string;
+  confidence?: string;
 }
 
 export interface ProductSearchResult {
@@ -56,91 +61,95 @@ class ProductSearchService {
   }
 
   private async searchRetailers(searchQuery: string, item: any): Promise<RetailerResult[]> {
-    // Try to get OpenAI client, return fallback data if not available
     try {
-      const openaiClient = getOpenAIClient();
+      console.log(`Searching for retailers with real-time web search...`);
       
-      const prompt = `
-You are a fashion e-commerce search expert. Given this product information, find real retailers that sell this item with accurate pricing.
-
-Product Details:
-- Name: ${item.name}
-- Brand: ${item.brand || 'Unknown'}
-- Category: ${item.category || 'Fashion'}
-- Price Range: ${item.price ? `Around $${item.price}` : 'Unknown'}
-
-Search Query: "${searchQuery}"
-
-Please return realistic retailer information in the following JSON format:
-{
-  "retailers": [
-    {
-      "id": "retailer-slug",
-      "name": "RETAILER NAME",
-      "originalPrice": 299,
-      "salePrice": 249,
-      "currency": "USD",
-      "availability": "in_stock",
-      "sizes": ["XS", "S", "M", "L"],
-      "url": "https://retailer.com/product",
-      "shipping": "Free shipping over $100",
-      "note": "Limited time offer",
-      "region": "US"
-    }
-  ]
-}
-
-Focus on these major fashion retailers:
-- FARFETCH (luxury, international)
-- NET-A-PORTER (luxury women's fashion)
-- MR PORTER (luxury men's fashion)
-- SSENSE (contemporary fashion)
-- MATCHES FASHION (luxury fashion)
-- SELFRIDGES (UK department store)
-- HARRODS (UK luxury department store)
-- SAKS FIFTH AVENUE (US luxury)
-- NORDSTROM (US department store)
-- MYTHERESA (German luxury retailer)
-
-Provide 3-5 realistic retailers with varied pricing, availability, and regions. Make prices realistic for the brand/item type.
-`;
-
-      const response = await openaiClient.chat.completions.create({
-        model: "gpt-4",
-        messages: [
-          {
-            role: "system",
-            content: "You are a fashion e-commerce expert who provides accurate, realistic retailer and pricing information. Always return valid JSON."
-          },
-          {
-            role: "user",
-            content: prompt
-          }
-        ],
-        temperature: 0.3,
-        max_tokens: 1500,
-      });
-
-      const content = response.choices[0]?.message?.content;
-      if (!content) {
-        throw new Error("No response from AI");
+      // Use real-time search service to find real retailers
+      const realListings = await realTimeSearchService.findRealRetailers(
+        item.name,
+        item.brand || '',
+        item.category,
+        item.sourceUrl
+      );
+      
+      // Convert real-time listings to our RetailerResult format
+      const retailers: RetailerResult[] = realListings.map((listing: any) => ({
+        id: listing.retailerName.toLowerCase().replace(/\s+/g, '-'),
+        name: listing.retailerName,
+        originalPrice: listing.price,
+        currency: listing.currency || "USD",
+        availability: listing.inStock ? "in_stock" : "sold_out",
+        sizes: listing.sizes || [],
+        url: listing.url,
+        shipping: listing.shipping || "Check retailer for details",
+        note: listing.isDirectListing 
+          ? "Direct product link" 
+          : "Search result - find exact product",
+        lastChecked: listing.lastChecked,
+        confidence: listing.isDirectListing ? "high" : "medium"
+      }));
+      
+      // If we have the original source URL, add it as the first retailer
+      if (item.sourceUrl && item.sourceUrl.trim()) {
+        const sourceRetailer = this.createSourceRetailer(item);
+        return [sourceRetailer, ...retailers];
       }
-
-      try {
-        const parsed = JSON.parse(content);
-        return parsed.retailers || [];
-      } catch (parseError) {
-        console.error("Error parsing AI response:", parseError);
-        return this.getFallbackRetailers(item);
-      }
-
+      
+      return retailers.length > 0 ? retailers : this.getEnhancedFallbackRetailers(item);
+      
     } catch (error) {
-      if (error instanceof Error && error.message === 'OpenAI API key not configured') {
-        console.log("OpenAI API key not configured, using fallback data");
-      } else {
-        console.error("Error searching retailers:", error);
-      }
-      return this.getFallbackRetailers(item);
+      console.error("Error in searchRetailers:", error);
+      return this.getEnhancedFallbackRetailers(item);
+    }
+  }
+
+  private createSourceRetailer(item: any): RetailerResult {
+    try {
+      const url = new URL(item.sourceUrl);
+      const domain = url.hostname.replace('www.', '');
+      const domainToName: { [key: string]: string } = {
+        'zara.com': 'ZARA',
+        'hm.com': 'H&M',
+        'cos.com': 'COS',
+        'arket.com': 'ARKET',
+        'net-a-porter.com': 'NET-A-PORTER',
+        'mr-porter.com': 'MR PORTER',
+        'ssense.com': 'SSENSE',
+        'farfetch.com': 'FARFETCH',
+        'matchesfashion.com': 'MATCHES FASHION',
+        'mytheresa.com': 'MYTHERESA',
+        'nordstrom.com': 'NORDSTROM',
+        'saksfifthavenue.com': 'SAKS FIFTH AVENUE',
+        'selfridges.com': 'SELFRIDGES',
+        'revolve.com': 'REVOLVE',
+        'shopbop.com': 'SHOPBOP',
+        'endclothing.com': 'END. CLOTHING',
+        '24s.com': '24S',
+        'luisaviaroma.com': 'LUISAVIAROMA',
+        'brownsfashion.com': 'BROWNS',
+        'vestiairecollective.com': 'VESTIAIRE COLLECTIVE',
+        'theoutnet.com': 'THE OUTNET',
+        'maison-alaia.com': 'ALAÏA',
+        'therow.com': 'THE ROW',
+        'ganni.com': 'GANNI',
+        'acnestudios.com': 'ACNE STUDIOS'
+      };
+      
+      return {
+        id: "original-retailer",
+        name: domainToName[domain] || domain.split('.')[0].toUpperCase(),
+        originalPrice: item.price,
+        currency: item.currency || "USD",
+        availability: "in_stock" as const,
+        sizes: ["XS", "S", "M", "L"],
+        url: item.sourceUrl,
+        shipping: "Check retailer for details",
+        note: "Original retailer - direct link",
+        region: "Global",
+        confidence: "high" as any
+      };
+    } catch (e) {
+      return this.getEnhancedFallbackRetailers(item)[0];
     }
   }
 
@@ -159,10 +168,11 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
         originalPrice: Math.round(basePrice * (1 + priceVariation)),
         salePrice: Math.round(basePrice * 0.9),
         currency: "USD",
-        availability: "in_stock",
+        availability: "in_stock" as const,
         sizes: ["XS", "S", "M", "L"],
-        url: `https://www.farfetch.com/shopping/search/items.aspx?q=${encodeURIComponent(searchQuery)}&designers=${encodeURIComponent(brandQuery)}`,
+        url: `https://www.farfetch.com/shopping/search/items.aspx?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping over $200",
+        note: "Search results page - find exact product",
         region: "Global"
       },
       {
@@ -170,10 +180,11 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
         name: "NET-A-PORTER",
         originalPrice: Math.round(basePrice * (1 + priceVariation * 1.2)),
         currency: "USD",
-        availability: "low_stock",
+        availability: "low_stock" as const,
         sizes: ["S", "M", "L"],
         url: `https://www.net-a-porter.com/en-us/search?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping",
+        note: "Search results page - find exact product",
         region: "US"
       },
       {
@@ -181,10 +192,11 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
         name: "SSENSE",
         originalPrice: Math.round(basePrice * (1 - priceVariation * 0.5)),
         currency: "USD",
-        availability: "in_stock",
+        availability: "in_stock" as const,
         sizes: ["XS", "S", "M", "L", "XL"],
         url: `https://www.ssense.com/en-us/search?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping over $100",
+        note: "Search results page - find exact product",
         region: "Global"
       },
       {
@@ -192,10 +204,11 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
         name: "MYTHERESA",
         originalPrice: Math.round(basePrice * (1 + priceVariation * 0.8)),
         currency: "USD",
-        availability: "in_stock",
+        availability: "in_stock" as const,
         sizes: ["XS", "S", "M", "L"],
         url: `https://www.mytheresa.com/en-us/search?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping",
+        note: "Search results page - find exact product",
         region: "Global"
       },
       {
@@ -203,12 +216,12 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
         name: "MATCHES FASHION",
         originalPrice: Math.round(basePrice * (1 + priceVariation * 1.1)),
         currency: "USD",
-        availability: "low_stock",
+        availability: "low_stock" as const,
         sizes: ["S", "M", "L", "XL"],
         url: `https://www.matchesfashion.com/us/search?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping over $200",
+        note: "Search results page - find exact product",
         region: "Global",
-        note: "Luxury fashion destination"
       }
     ];
   }
@@ -243,23 +256,20 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
       const searchQueries = await this.generateSearchQueries(item);
       const primaryQuery = searchQueries[0];
       
-      // Search for retailers using AI
+      // Search for retailers using enhanced AI search
       let retailers = await this.searchRetailers(primaryQuery, item);
-      
-      // If item has original sourceUrl, enhance the search context
-      if (item.sourceUrl && item.sourceUrl.trim()) {
-        console.log(`Using original source URL for enhanced search: ${item.sourceUrl}`);
-        // In real implementation, this would help AI understand the original context
-        // For now, we'll use it to generate better fallback retailers
-        retailers = this.getEnhancedFallbackRetailers(item);
-      }
       
       // Enhance with regional pricing
       retailers = await this.enhanceWithRegionalPricing(retailers, region);
       
-      // Sort by availability and price
-      retailers.sort((a, b) => {
-        const availabilityOrder = { 'in_stock': 0, 'low_stock': 1, 'sold_out': 2, 'limited_region': 3 };
+      // Sort by confidence and availability
+      retailers.sort((a: any, b: any) => {
+        // Prioritize high confidence results
+        if (a.confidence !== b.confidence) {
+          return a.confidence === 'high' ? -1 : 1;
+        }
+        
+        const availabilityOrder: Record<string, number> = { 'in_stock': 0, 'low_stock': 1, 'sold_out': 2, 'limited_region': 3 };
         const aOrder = availabilityOrder[a.availability] || 4;
         const bOrder = availabilityOrder[b.availability] || 4;
         
@@ -270,11 +280,15 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
         return aPrice - bPrice;
       });
 
+      // Determine overall confidence based on results
+      const hasDirectLinks = retailers.some((r: any) => r.confidence === 'high' || r.note?.includes('direct'));
+      const confidence = hasDirectLinks ? 0.9 : 0.5;
+
       return {
-        retailers: retailers.slice(0, 5), // Limit to top 5 results
+        retailers: retailers.slice(0, 6), // Return top 6 results
         metadata: {
           searchQuery: primaryQuery,
-          confidence: item.sourceUrl ? 0.95 : (retailers.length > 0 ? 0.85 : 0.3),
+          confidence: confidence,
           totalFound: retailers.length,
           lastUpdated: new Date().toISOString()
         }
@@ -283,15 +297,13 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
     } catch (error) {
       console.error("Error in product search:", error);
       
-      // Return fallback data
-      const fallbackRetailers = item.sourceUrl ? 
-        this.getEnhancedFallbackRetailers(item) : 
-        this.getFallbackRetailers(item);
+      // Return enhanced fallback data
+      const fallbackRetailers = this.getEnhancedFallbackRetailers(item);
       return {
         retailers: await this.enhanceWithRegionalPricing(fallbackRetailers, region),
         metadata: {
           searchQuery: `${item.brand} ${item.name}`,
-          confidence: item.sourceUrl ? 0.8 : 0.3,
+          confidence: 0.3,
           totalFound: fallbackRetailers.length,
           lastUpdated: new Date().toISOString()
         }
@@ -303,57 +315,102 @@ Provide 3-5 realistic retailers with varied pricing, availability, and regions. 
     const basePrice = item.price || 200;
     const priceVariation = 0.15; // Smaller variation when we have original source
     
-    // Create better search queries
+    // Create search query
     const searchQuery = `${item.brand || ''} ${item.name || ''}`.trim();
-    const brandQuery = item.brand || '';
     
-    // Extract domain from sourceUrl for better retailer suggestions
-    let sourceDomain = '';
+    // If we have a source URL, extract the retailer info
+    let sourceRetailer = null;
     if (item.sourceUrl) {
       try {
         const url = new URL(item.sourceUrl);
-        sourceDomain = url.hostname.replace('www.', '');
+        const domain = url.hostname.replace('www.', '');
+        const domainToName: { [key: string]: string } = {
+          'zara.com': 'ZARA',
+          'hm.com': 'H&M',
+          'cos.com': 'COS',
+          'arket.com': 'ARKET',
+          'net-a-porter.com': 'NET-A-PORTER',
+          'mr-porter.com': 'MR PORTER',
+          'ssense.com': 'SSENSE',
+          'farfetch.com': 'FARFETCH',
+          'matchesfashion.com': 'MATCHES FASHION',
+          'mytheresa.com': 'MYTHERESA',
+          'nordstrom.com': 'NORDSTROM',
+          'saksfifthavenue.com': 'SAKS FIFTH AVENUE',
+          'selfridges.com': 'SELFRIDGES',
+          'revolve.com': 'REVOLVE',
+          'shopbop.com': 'SHOPBOP',
+          'endclothing.com': 'END. CLOTHING',
+          '24s.com': '24S',
+          'luisaviaroma.com': 'LUISAVIAROMA',
+          'brownsfashion.com': 'BROWNS',
+          'vestiairecollective.com': 'VESTIAIRE COLLECTIVE',
+          'theoutnet.com': 'THE OUTNET'
+        };
+        
+        sourceRetailer = {
+          id: "original-retailer",
+          name: domainToName[domain] || domain.split('.')[0].toUpperCase(),
+          originalPrice: basePrice,
+          currency: item.currency || "USD",
+          availability: "in_stock" as const,
+          sizes: ["XS", "S", "M", "L"],
+          url: item.sourceUrl,
+          shipping: "Check retailer for details",
+          note: "Original retailer - direct link",
+          region: "Global",
+          confidence: "high" as any
+        };
       } catch (e) {
         // Invalid URL, ignore
       }
     }
     
-    return [
+    const retailers = [
       {
-        id: "farfetch",
+        id: "farfetch-search",
         name: "FARFETCH",
         originalPrice: Math.round(basePrice * (1 + priceVariation * 0.8)),
-        salePrice: Math.round(basePrice * 0.95),
         currency: "USD",
-        availability: "in_stock",
+        availability: "in_stock" as const,
         sizes: ["XS", "S", "M", "L"],
-        url: `https://www.farfetch.com/shopping/search/items.aspx?q=${encodeURIComponent(searchQuery)}&designers=${encodeURIComponent(brandQuery)}`,
+        url: `https://www.farfetch.com/shopping/search/items.aspx?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping over $200",
+        note: "Search results - click to find exact product",
         region: "Global"
       },
       {
-        id: "net-a-porter",
+        id: "net-a-porter-search",
         name: "NET-A-PORTER",
         originalPrice: Math.round(basePrice * (1 + priceVariation)),
         currency: "USD",
-        availability: "in_stock",
+        availability: "in_stock" as const,
         sizes: ["S", "M", "L"],
         url: `https://www.net-a-porter.com/en-us/search?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping",
+        note: "Search results - click to find exact product",
         region: "US"
       },
       {
-        id: "ssense",
+        id: "ssense-search",
         name: "SSENSE",
         originalPrice: Math.round(basePrice * (1 - priceVariation * 0.3)),
         currency: "USD",
-        availability: "in_stock",
+        availability: "in_stock" as const,
         sizes: ["XS", "S", "M", "L", "XL"],
         url: `https://www.ssense.com/en-us/search?q=${encodeURIComponent(searchQuery)}`,
         shipping: "Free shipping over $100",
+        note: "Search results - click to find exact product",
         region: "Global"
       }
     ];
+    
+    // Add source retailer first if available
+    if (sourceRetailer) {
+      return [sourceRetailer, ...retailers];
+    }
+    
+    return retailers;
   }
 
   public async searchSimilarProducts(item: any, limit: number = 10): Promise<any[]> {
@@ -413,6 +470,231 @@ Focus on products from similar brands or in the same category/style.
         console.error("Error finding similar products:", error);
       }
       return [];
+    }
+  }
+
+  async scrapeProductFromUrl(url: string): Promise<any> {
+    try {
+      console.log(`Fetching content from URL: ${url}`);
+      
+      // Fetch the webpage content
+      const response = await axios.get(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        timeout: 10000,
+      });
+      
+      const html = response.data;
+      const $ = cheerio.load(html);
+      
+      // Extract metadata and structured data
+      const pageTitle = $('title').text() || '';
+      const metaDescription = $('meta[name="description"]').attr('content') || '';
+      const ogTitle = $('meta[property="og:title"]').attr('content') || '';
+      const ogDescription = $('meta[property="og:description"]').attr('content') || '';
+      const ogImage = $('meta[property="og:image"]').attr('content') || '';
+      const ogPrice = $('meta[property="product:price:amount"]').attr('content') || '';
+      const ogCurrency = $('meta[property="product:price:currency"]').attr('content') || 'USD';
+      const ogBrand = $('meta[property="product:brand"]').attr('content') || '';
+      
+      // Try to find price in common locations
+      let priceText = ogPrice;
+      if (!priceText) {
+        const priceSelectors = [
+          '.price', '.product-price', '.current-price', '.sale-price',
+          '[itemprop="price"]', '[data-price]', '.price-now', '.product-price-value',
+          '.price-sales', '.product-price-sale', '.price--highlight',
+          '.ProductMeta__Price', '.price__current', '.price_color',
+          '.product-single__price', '.product__price', '.money',
+          'span[data-product-price]', '.product-form__price'
+        ];
+        for (const selector of priceSelectors) {
+          const element = $(selector).first();
+          if (element.length) {
+            priceText = element.text().trim();
+            break;
+          }
+        }
+      }
+      
+      // Try to find product name
+      let productName = ogTitle || pageTitle;
+      const nameSelectors = [
+        'h1', '.product-name', '.product-title', '[itemprop="name"]',
+        '.product-detail-info__product-name', '.product-heading',
+        '.product__title', '.product-single__title', 'h1.product-title',
+        '.pdp-name', '.product-info__title', '.product-details__title'
+      ];
+      for (const selector of nameSelectors) {
+        const element = $(selector).first();
+        if (element.length) {
+          const text = element.text().trim();
+          if (text && text.length < 200) {
+            productName = text;
+            break;
+          }
+        }
+      }
+      
+      // Try to find brand
+      let brandText = ogBrand;
+      if (!brandText) {
+        const brandSelectors = [
+          '.brand', '.product-brand', '[itemprop="brand"]',
+          '.designer-name', '.product__vendor', '.brand-name',
+          'a[href*="/brand/"]', 'a[href*="/designer/"]'
+        ];
+        for (const selector of brandSelectors) {
+          const element = $(selector).first();
+          if (element.length) {
+            brandText = element.text().trim();
+            break;
+          }
+        }
+      }
+      
+      // Try to find product images
+      let imageUrl = ogImage;
+      if (!imageUrl) {
+        const imageSelectors = [
+          'img.product-image', 'img.product-photo', '[itemprop="image"]',
+          '.product__media img', '.product-single__photo img',
+          '.product-image-main img', '.pdp-image img', '.product-gallery img'
+        ];
+        for (const selector of imageSelectors) {
+          const element = $(selector).first();
+          if (element.length) {
+            imageUrl = element.attr('src') || element.attr('data-src') || '';
+            if (imageUrl) break;
+          }
+        }
+      }
+      
+      // Extract text content for AI analysis
+      const textContent = $('body').text()
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 4000); // Limit text for token efficiency
+      
+      // Helper function to ensure absolute URL
+      const makeAbsoluteUrl = (relativeUrl: string): string => {
+        if (!relativeUrl || relativeUrl.startsWith('http')) {
+          return relativeUrl;
+        }
+        try {
+          const urlObj = new URL(url);
+          return new URL(relativeUrl, urlObj.origin).href;
+        } catch {
+          return relativeUrl;
+        }
+      };
+      
+      // Ensure image URL is absolute
+      if (imageUrl) {
+        imageUrl = makeAbsoluteUrl(imageUrl);
+      }
+      
+      // If we have an OpenAI API key, use it to extract structured data
+      try {
+        const client = getOpenAIClient();
+        
+        const prompt = `Extract product information from this webpage content. 
+        
+        Page Title: ${pageTitle}
+        Meta Description: ${metaDescription}
+        OG Title: ${ogTitle}
+        OG Description: ${ogDescription}
+        Found Price: ${priceText}
+        Found Brand: ${brandText}
+        Found Image: ${imageUrl}
+        
+        Body Text Sample: ${textContent}
+        
+        URL: ${url}
+        
+        Extract and return JSON with these fields:
+        {
+          "name": "exact product name",
+          "brand": "brand name",
+          "price": "current price as string (e.g. '$99.99')",
+          "originalPrice": "original price if on sale",
+          "description": "brief product description",
+          "category": "clothing/shoes/accessories/jewelry/bags",
+          "imageUrl": "main product image URL",
+          "color": "product color",
+          "sizes": ["available sizes if found"],
+          "material": "material/fabric if mentioned"
+        }`;
+        
+        const aiResponse = await client.chat.completions.create({
+          model: "gpt-4-turbo-preview",
+          messages: [
+            {
+              role: "system",
+              content: "You are a product data extractor. Extract accurate product information from webpage content. Return valid JSON only."
+            },
+            {
+              role: "user",
+              content: prompt
+            }
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.3,
+          max_tokens: 800,
+        });
+        
+        const content = aiResponse.choices[0]?.message?.content;
+        if (content) {
+          const productData = JSON.parse(content);
+          
+          // Ensure we have absolute image URLs
+          if (productData.imageUrl && !productData.imageUrl.startsWith('http')) {
+            const urlObj = new URL(url);
+            productData.imageUrl = new URL(productData.imageUrl, urlObj.origin).href;
+          }
+          
+          // Add source URL and ID
+          productData.sourceUrl = url;
+          productData.id = url.split('/').pop()?.split('?')[0] || Date.now().toString();
+          
+          console.log('Successfully extracted product data:', productData.name);
+          return productData;
+        }
+      } catch (aiError) {
+        console.log('AI extraction failed, using fallback method:', aiError);
+      }
+      
+      // Fallback extraction without AI
+      const domain = new URL(url).hostname.replace('www.', '').split('.')[0];
+      
+      const fallbackData = {
+        id: url.split('/').pop()?.split('?')[0] || Date.now().toString(),
+        name: productName || `Product from ${domain}`,
+        brand: brandText || domain.charAt(0).toUpperCase() + domain.slice(1),
+        price: priceText || "$0.00",
+        description: ogDescription || metaDescription || "Product details",
+        category: "clothing",
+        imageUrl: imageUrl || "/api/placeholder/400/600",
+        sourceUrl: url,
+        sizes: [],
+      };
+      
+      console.log('Using fallback extraction for:', fallbackData.name);
+      return fallbackData;
+      
+    } catch (error) {
+      console.error("Error scraping product from URL:", error);
+      
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 404) {
+          throw new Error("Product page not found");
+        } else if (error.code === 'ECONNABORTED') {
+          throw new Error("Request timeout - page took too long to load");
+        }
+      }
+      
+      throw new Error("Failed to fetch product information from URL");
     }
   }
 }

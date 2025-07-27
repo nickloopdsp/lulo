@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
-import { ArrowLeft, Heart, Share, Star, ExternalLink, ChevronDown, Loader2 } from "lucide-react";
+import { ArrowLeft, Heart, Share, Star, ExternalLink, ChevronDown, Loader2, Search, ChevronRight, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,6 +47,8 @@ type RetailerOption = {
   url: string;
   shipping?: string;
   note?: string;
+  confidence?: "high" | "medium" | "low";
+  lastChecked?: string;
 };
 
 export default function ProductDetail() {
@@ -200,14 +202,14 @@ export default function ProductDetail() {
       
       if (response.metadata && response.metadata.confidence < 0.5) {
         toast({
-          title: "Limited Results",
-          description: "AI found limited retailer information for this item.",
-          variant: "destructive"
-        });
-      } else if (response.metadata && response.metadata.confidence < 0.9 && !item.sourceUrl) {
-        toast({
           title: "Search Results",
-          description: "Links will take you to retailer search pages for this item.",
+          description: "These are search links - click to find the exact product on each retailer's site.",
+        });
+      } else if (response.metadata && response.metadata.confidence >= 0.9) {
+        toast({
+          title: "Found Direct Listings",
+          description: "Found retailers with this exact product in stock!",
+          variant: "default"
         });
       }
     } catch (error) {
@@ -390,7 +392,7 @@ export default function ProductDetail() {
           {isLoadingRetailers ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="w-6 h-6 animate-spin text-lulo-gray" />
-              <span className="ml-2 text-lulo-gray">Finding retailers...</span>
+              <span className="ml-2 text-lulo-gray">Searching for retailers with this exact product...</span>
             </div>
           ) : retailers.length === 0 ? (
             <div className="text-center py-8 text-lulo-gray">
@@ -405,42 +407,66 @@ export default function ProductDetail() {
               </Button>
             </div>
           ) : (
-            retailers.map((retailer: RetailerOption) => (
-              <Card
-                key={retailer.id}
-                className={`border-lulo-border cursor-pointer hover:shadow-sm transition-shadow ${
-                  retailer.id === 'original-source' ? 'border-2 border-lulo-pink bg-gradient-to-r from-lulo-pink/5 to-lulo-coral/5' : ''
-                }`}
-                onClick={() => handleRetailerClick(retailer)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center space-x-2">
-                          <h4 className={`font-semibold text-sm ${
-                            retailer.id === 'original-source' ? 'text-lulo-pink' : 'text-lulo-dark'
-                          }`}>
-                            {retailer.name}
-                          </h4>
-                          {retailer.id === 'original-source' && (
-                            <Badge className="bg-lulo-pink text-white text-xs">
-                              ⭐ ORIGINAL
-                            </Badge>
+            <>
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-lulo-dark mb-2">
+                  Available at {retailers.length} retailer{retailers.length > 1 ? 's' : ''}
+                </h3>
+                {retailers.some((r: RetailerOption) => r.confidence === 'high' || r.note?.includes('direct')) && (
+                  <p className="text-xs text-green-600">
+                    ✓ Found direct product listings
+                  </p>
+                )}
+              </div>
+              
+              {retailers.map((retailer: RetailerOption, index: number) => (
+                <Card 
+                  key={index}
+                  className={`cursor-pointer hover:shadow-sm transition-shadow ${
+                    retailer.confidence === 'high' || retailer.note?.includes('direct') 
+                      ? 'border-green-500' 
+                      : ''
+                  }`}
+                  onClick={() => handleRetailerClick(retailer)}
+                >
+                  <CardContent className="p-4">
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center space-x-3">
+                          {retailer.confidence === 'high' || retailer.note?.includes('direct') ? (
+                            <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          ) : (
+                            <Search className="w-5 h-5 text-lulo-gray" />
                           )}
+                          <div>
+                            <h3 className="font-semibold text-lulo-dark">{retailer.name}</h3>
+                            <p className="text-xs text-lulo-gray">
+                              {retailer.id === 'original-source' || retailer.id === 'original-retailer' 
+                                ? 'Original product page' 
+                                : retailer.note?.includes('direct') 
+                                  ? 'Direct product link'
+                                  : retailer.note || 'Click to view'}
+                            </p>
+                          </div>
                         </div>
-                        <div className="text-right">
+                        <ChevronRight className="w-5 h-5 text-lulo-gray" />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div className="text-left">
                           {retailer.salePrice && retailer.originalPrice && retailer.salePrice < retailer.originalPrice ? (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-xs text-lulo-gray line-through">
+                            <div>
+                              <span className="text-xs text-lulo-gray line-through mr-2">
                                 ${retailer.originalPrice}
                               </span>
                               <span className="text-lg font-bold text-red-600">
                                 ${retailer.salePrice}
                               </span>
-                              <Badge variant="destructive" className="text-xs">
-                                ★ Lowest price
-                              </Badge>
+                              <span className="text-xs text-red-600 ml-1">
+                                (-{Math.round(((retailer.originalPrice - retailer.salePrice) / retailer.originalPrice) * 100)}%)
+                              </span>
                             </div>
                           ) : retailer.originalPrice ? (
                             <span className="text-lg font-semibold text-lulo-dark">
@@ -448,67 +474,71 @@ export default function ProductDetail() {
                             </span>
                           ) : (
                             <span className="text-sm text-lulo-gray">
-                              Check price
+                              Price varies
                             </span>
                           )}
                         </div>
+                        
+                        {retailer.availability === "sold_out" ? (
+                          <Badge variant="secondary" className="text-xs">
+                            Sold Out
+                          </Badge>
+                        ) : retailer.availability === "low_stock" ? (
+                          <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
+                            Low Stock
+                          </Badge>
+                        ) : retailer.availability === "limited_region" ? (
+                          <Badge variant="outline" className="text-xs border-blue-500 text-blue-600">
+                            Limited Region
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs border-green-500 text-green-600">
+                            In Stock
+                          </Badge>
+                        )}
                       </div>
                       
-                      <p className="text-xs text-lulo-gray mb-2">
-                        {retailer.id === 'original-source' ? 'Original product page' : `From ${retailer.name}`}
-                      </p>
-
-                      {/* Size Options */}
-                      <div className="flex space-x-2 mb-2">
-                        {retailer.sizes.map((size: string) => (
-                          <Button
-                            key={size}
-                            variant="outline"
-                            size="sm"
-                            className="px-3 py-1 text-xs rounded border-lulo-border"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedSize(size);
-                            }}
-                          >
-                            {size}
-                          </Button>
-                        ))}
-                      </div>
-
-                      {/* Status */}
-                      {retailer.availability === "sold_out" ? (
-                        <Badge variant="secondary" className="text-xs">
-                          SOLD OUT
-                        </Badge>
-                      ) : retailer.availability === "low_stock" ? (
-                        <Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
-                          Low Stock
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className={`text-xs ${
-                          retailer.id === 'original-source' ? 'border-lulo-pink text-lulo-pink' : 'border-green-500 text-green-600'
-                        }`}>
-                          {retailer.id === 'original-source' ? 'Available' : 'In Stock'}
-                        </Badge>
-                      )}
-
-                      {/* Special Notes */}
-                      {retailer.note && (
-                        <div className={`flex items-center mt-2 text-xs ${
-                          retailer.id === 'original-source' ? 'text-lulo-pink' : 'text-green-600'
-                        }`}>
-                          <span className="mr-1">
-                            {retailer.id === 'original-source' ? '🔗' : '🌱'}
-                          </span>
-                          <span>{retailer.note}</span>
+                      {/* Sizes if available and it's a direct link */}
+                      {retailer.sizes && retailer.sizes.length > 0 && (retailer.confidence === 'high' || retailer.note?.includes('direct')) && (
+                        <div className="mt-2 flex items-center space-x-2">
+                          <span className="text-xs text-lulo-gray">Sizes:</span>
+                          <div className="flex space-x-1">
+                            {retailer.sizes.slice(0, 5).map((size, idx) => (
+                              <span key={idx} className="text-xs px-2 py-1 bg-lulo-light-gray rounded">
+                                {size}
+                              </span>
+                            ))}
+                            {retailer.sizes.length > 5 && (
+                              <span className="text-xs text-lulo-gray">+{retailer.sizes.length - 5}</span>
+                            )}
+                          </div>
                         </div>
                       )}
+                      
+                      {retailer.shipping && (
+                        <p className="text-xs text-lulo-gray mt-2">
+                          {retailer.shipping}
+                        </p>
+                      )}
+                      
+                      {retailer.lastChecked && (
+                        <p className="text-xs text-lulo-gray mt-1">
+                          Last checked: {new Date(retailer.lastChecked).toLocaleDateString()}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
+                  </CardContent>
+                </Card>
+              ))}
+              
+              <div className="mt-4 p-3 bg-lulo-light-gray rounded-lg">
+                <p className="text-xs text-lulo-gray">
+                  <span className="font-medium">Tip:</span> Prices and availability may vary. 
+                  {retailers.some((r: RetailerOption) => r.confidence !== 'high' && !r.note?.includes('direct')) && 
+                    " Some links may show search results where you'll need to find the exact product."}
+                </p>
+              </div>
+            </>
           )}
         </div>
 

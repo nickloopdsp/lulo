@@ -5,10 +5,10 @@ dist
 # macOS
 .DS_Store
 
-# Environment variables (sensitive)
-.env
-server/.env
-*.env
+# Environment variables (sensitive) - commented out for local development
+# .env
+# server/.env
+# *.env
 
 # Ignore all of server/public…
 server/public/*
@@ -28,3 +28,6 @@ vite.config.ts.*
 
 # Development scripts with secrets
 run-dev.sh
+# Environment files with secrets
+.env
+server/.env

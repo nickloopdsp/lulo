@@ -313,3 +313,8 @@
     @apply active:scale-95 transition-transform duration-75;
   }
 }
+
+/* Ensure Radix UI Select dropdowns appear above modals */
+[data-radix-popper-content-wrapper] {
+  z-index: 9999 !important;
+}

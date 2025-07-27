@@ -1,5 +1,5 @@
 import { useLocation } from "wouter";
-import { Plus, Users, Bell, User } from "lucide-react";
+import { Newspaper, Users, Bell, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -10,9 +10,9 @@ export default function BottomNavigation() {
 
   const navItems = [
     { 
-      icon: Plus, 
-      label: "Add", 
-      path: "/add-item",
+      icon: Newspaper, 
+      label: "Search", 
+      path: "/search",
       type: "icon"
     },
     { 

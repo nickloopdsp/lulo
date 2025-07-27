@@ -25,7 +25,7 @@ import {
   type InsertPriceHistory,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, or, sql } from "drizzle-orm";
+import { eq, desc, and, or, sql, isNull } from "drizzle-orm";
 
 // Interface for storage operations
 export interface IStorage {
@@ -41,8 +41,10 @@ export interface IStorage {
   
   // Wishlist operations
   getUserWishlist(userId: string): Promise<(Wishlist & Omit<Item, 'id' | 'createdAt' | 'updatedAt' | 'addedBy'>)[]>;
+  getUserWishlistFolders(userId: string): Promise<string[]>;
   addToWishlist(wishlist: InsertWishlist): Promise<Wishlist>;
   removeFromWishlist(userId: string, itemId: number): Promise<void>;
+  deleteWishlistFolder(userId: string, folderName: string): Promise<void>;
   updateWishlistItem(userId: string, wishlistId: number, updates: Partial<Wishlist>): Promise<Wishlist>;
   
   // Closet operations
@@ -200,6 +202,19 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(wishlists.createdAt));
   }
 
+  async getUserWishlistFolders(userId: string): Promise<string[]> {
+    const result = await db
+      .select({ folder: wishlists.folder })
+      .from(wishlists)
+      .where(and(
+        eq(wishlists.userId, userId),
+        sql`${wishlists.folder} IS NOT NULL AND ${wishlists.folder} != ''`
+      ))
+      .groupBy(wishlists.folder);
+    
+    return result.map((row: any) => row.folder).filter((folder: any) => folder);
+  }
+
   async addToWishlist(wishlist: InsertWishlist): Promise<Wishlist> {
     const now = Math.floor(Date.now() / 1000);
     const [newWishlist] = await db.insert(wishlists).values({
@@ -213,6 +228,22 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(wishlists)
       .where(and(eq(wishlists.userId, userId), eq(wishlists.itemId, itemId)));
+  }
+
+  async deleteWishlistFolder(userId: string, folderName: string): Promise<void> {
+    // Handle the special case of "Uncategorized" which represents items with null or empty folder
+    if (folderName === 'Uncategorized') {
+      await db
+        .delete(wishlists)
+        .where(and(
+          eq(wishlists.userId, userId), 
+          or(isNull(wishlists.folder), eq(wishlists.folder, ''))
+        ));
+    } else {
+      await db
+        .delete(wishlists)
+        .where(and(eq(wishlists.userId, userId), eq(wishlists.folder, folderName)));
+    }
   }
 
   async updateWishlistItem(userId: string, wishlistId: number, updates: Partial<Wishlist>): Promise<Wishlist> {
