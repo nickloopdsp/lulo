@@ -64,7 +64,7 @@ app.use((req, res, next) => {
   const port = parseInt(process.env.PORT || '5000', 10);
   
   if (process.env.NODE_ENV === "development") {
-    server.listen(port, () => {
+    server.listen(port, "0.0.0.0", () => {
       log(`serving on port ${port}`);
     });
   } else {
