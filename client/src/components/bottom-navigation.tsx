@@ -1,7 +1,6 @@
 import { useLocation } from "wouter";
-import { Newspaper, Users, Bell, User } from "lucide-react";
+import { Rss, Users, ShoppingBag, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { LuloIcon } from "@/components/lulo-icon";
 
@@ -10,33 +9,32 @@ export default function BottomNavigation() {
 
   const navItems = [
     { 
-      icon: Newspaper, 
-      label: "Search", 
-      path: "/search",
+      icon: Rss, 
+      label: "Newsfeed", 
+      path: "/newsfeed",
       type: "icon"
     },
     { 
       icon: Users, 
-      label: "Social", 
-      path: "/social",
+      label: "Boardroom", 
+      path: "/boardroom",
       type: "icon"
     },
     { 
       icon: null, 
-      label: "Home", 
-      path: "/",
+      label: "Upload", 
+      path: "/upload",
       type: "home-circle"
     },
     { 
-      icon: Bell, 
-      label: "Notifications", 
-      path: "/notifications",
-      type: "notification",
-      badge: 5
+      icon: ShoppingBag, 
+      label: "Shopping Space", 
+      path: "/shopping",
+      type: "icon"
     },
     { 
       icon: null, 
-      label: "Profile", 
+      label: "Your Profile", 
       path: "/profile",
       type: "avatar"
     },
@@ -104,11 +102,6 @@ export default function BottomNavigation() {
                   <Icon className={`w-6 h-6 ${
                     isActive ? "text-lulo-dark" : "text-lulo-gray"
                   }`} />
-                )}
-                {item.badge && (
-                  <Badge className="absolute -top-2 -right-2 w-5 h-5 p-0 text-xs bg-lulo-coral border-0 text-white flex items-center justify-center">
-                    {item.badge}
-                  </Badge>
                 )}
               </div>
             </Button>

@@ -18,6 +18,14 @@ import SocialActivity from "@/pages/social-activity";
 import Notifications from "@/pages/notifications";
 import UserProfile from "@/pages/user-profile";
 import ProductDetail from "@/pages/product-detail";
+import NewsfeedPage from "@/pages/newsfeed";
+import ArticlePage from "@/pages/article";
+import BoardroomPage from "@/pages/boardroom";
+import ChatPage from "@/pages/chat";
+import UploadPage from "@/pages/upload";
+import VisualSearchPage from "@/pages/visual-search";
+import VisualSearchResultsPage from "@/pages/visual-search-results";
+import LinkUploadPage from "@/pages/link-upload";
 import TopNavigation from "@/components/top-navigation";
 import BottomNavigation from "@/components/bottom-navigation";
 
@@ -51,6 +59,68 @@ function Router() {
         </div>
       </Route>
       
+      {/* Newsfeed page without top navigation */}
+      <Route path="/newsfeed">
+        <div className="mobile-app-container">
+          <NewsfeedPage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
+      {/* Article page without top navigation */}
+      <Route path="/article/:articleId">
+        <div className="mobile-app-container">
+          <ArticlePage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
+      {/* Boardroom page without top navigation */}
+      <Route path="/boardroom">
+        <div className="mobile-app-container">
+          <BoardroomPage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
+      {/* Chat page without top or bottom navigation */}
+      <Route path="/chat/:chatId">
+        <div className="mobile-app-container">
+          <ChatPage />
+        </div>
+      </Route>
+      
+      {/* Upload page without top navigation */}
+      <Route path="/upload">
+        <div className="mobile-app-container">
+          <UploadPage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
+      {/* Visual Search pages without top navigation */}
+      <Route path="/visual-search">
+        <div className="mobile-app-container">
+          <VisualSearchPage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
+      <Route path="/visual-search/results">
+        <div className="mobile-app-container">
+          <VisualSearchResultsPage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
+      {/* Link Upload page without top navigation */}
+      <Route path="/link-upload">
+        <div className="mobile-app-container">
+          <LinkUploadPage />
+          <BottomNavigation />
+        </div>
+      </Route>
+      
       {/* Social page without top navigation */}
       <Route path="/social">
         <div className="mobile-app-container">
@@ -80,6 +150,7 @@ function Router() {
           <Switch>
             <Route path="/" component={Wishlist} />
             <Route path="/wishlist" component={Wishlist} />
+            <Route path="/shopping" component={Wishlist} />
             <Route path="/closet" component={Closet} />
             <Route path="/lookbooks" component={Lookbooks} />
             <Route path="/search" component={Search} />

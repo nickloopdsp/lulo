@@ -7,6 +7,7 @@ import { z } from "zod";
 import { aiImageAnalysisService } from "./services/aiImageAnalysis";
 import { productSearchService } from "./services/productSearchService";
 import { FashionNewsService } from "./services/fashionNewsService";
+import { visualSearchService } from "./services/visualSearchService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -650,6 +651,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get('/api/fashion-news/:articleId', isAuthenticated, async (req: any, res) => {
+    try {
+      const articleId = req.params.articleId;
+      
+      console.log("Fetching individual article:", articleId);
+      const article = await FashionNewsService.getArticleById(articleId);
+      
+      if (!article) {
+        return res.status(404).json({ message: "Article not found" });
+      }
+      
+      res.json(article);
+    } catch (error) {
+      console.error("Error fetching article:", error);
+      res.status(500).json({ message: "Failed to fetch article" });
+    }
+  });
+
   // AI Image Analysis routes
   app.post('/api/ai/analyze-image', isAuthenticated, async (req: any, res) => {
     try {
@@ -798,6 +817,255 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading image:", error);
       res.status(500).json({ message: "Failed to upload image" });
+    }
+  });
+
+  // Visual search endpoint
+  app.post('/api/visual-search', isAuthenticated, visualSearchService.searchByImage);
+
+  // Trending routes
+  app.get('/api/trending/items', isAuthenticated, async (req: any, res) => {
+    try {
+      // Get most wishlisted items from the past week
+      const trendingItems = await storage.getMostWishlistedItems();
+      res.json(trendingItems);
+    } catch (error) {
+      console.error("Error fetching trending items:", error);
+      res.status(500).json({ message: "Failed to fetch trending items" });
+    }
+  });
+
+  app.get('/api/trending/wishlists', isAuthenticated, async (req: any, res) => {
+    try {
+      // Mock trending wishlists data
+      const trendingWishlists = [
+        { id: "wl-1", name: "South of France", count: 25, location: "NYC" },
+        { id: "wl-2", name: "NYC", count: 12, location: "Italy" },
+        { id: "wl-3", name: "4th of July", count: 19, location: "Nantucket" },
+        { id: "wl-4", name: "Tuscany Wedding", count: 13, location: "LA" },
+        { id: "wl-5", name: "Beach Vibes", count: 48, location: "Madrid" },
+        { id: "wl-6", name: "Euro Summer", count: 21, location: "USA" }
+      ];
+      res.json(trendingWishlists);
+    } catch (error) {
+      console.error("Error fetching trending wishlists:", error);
+      res.status(500).json({ message: "Failed to fetch trending wishlists" });
+    }
+  });
+
+  // Chat/Boardroom routes
+  app.get('/api/chats', isAuthenticated, async (req: any, res) => {
+    try {
+      // Mock chat data for now
+      const chats = [
+        {
+          id: "1",
+          userId: "1",
+          username: "nicksent",
+          displayName: "Nick Sent",
+          avatarUrl: "/api/placeholder/150/150",
+          messageCount: 4,
+          timestamp: "1h",
+          isVerified: true,
+          hasUnread: true,
+          type: "message"
+        },
+        {
+          id: "2",
+          userId: "2", 
+          username: "isa",
+          displayName: "Isabella",
+          avatarUrl: "/api/placeholder/150/150",
+          messageCount: 2,
+          timestamp: "1h",
+          hasUnread: true,
+          type: "message"
+        },
+        {
+          id: "3",
+          userId: "3",
+          username: "cmf",
+          displayName: "CMF",
+          avatarUrl: "/api/placeholder/150/150",
+          messageCount: 2,
+          timestamp: "2h",
+          hasUnread: true,
+          type: "message"
+        }
+      ];
+      
+      res.json(chats);
+    } catch (error) {
+      console.error("Error fetching chats:", error);
+      res.status(500).json({ message: "Failed to fetch chats" });
+    }
+  });
+
+  app.get('/api/activities', isAuthenticated, async (req: any, res) => {
+    try {
+      // Mock activity data for now
+      const activities = [
+        {
+          id: "1",
+          userId: "10",
+          username: "fashionista23",
+          displayName: "Fashion Lover",
+          avatarUrl: "/api/placeholder/150/150",
+          action: "liked your outfit",
+          timestamp: "2h",
+          isVerified: true,
+          type: "like"
+        },
+        {
+          id: "2",
+          userId: "11",
+          username: "styleicon",
+          displayName: "Style Icon",
+          avatarUrl: "/api/placeholder/150/150",
+          action: "started following you",
+          timestamp: "3h",
+          type: "follow"
+        }
+      ];
+      
+      res.json(activities);
+    } catch (error) {
+      console.error("Error fetching activities:", error);
+      res.status(500).json({ message: "Failed to fetch activities" });
+    }
+  });
+
+  // Search route
+  app.get('/api/search', isAuthenticated, async (req: any, res) => {
+    try {
+      const query = req.query.q as string;
+      const filter = req.query.filter as string;
+      
+      if (!query || query.trim() === '') {
+        return res.json([]);
+      }
+
+      const searchResults = [];
+      const searchTerm = query.toLowerCase();
+
+      // Search users (if no filter or filter is 'people')
+      if (!filter || filter === 'people') {
+        const users = await storage.searchUsers(req.user.id, searchTerm);
+        users.forEach(user => {
+          searchResults.push({
+            id: `user-${user.id}`,
+            type: 'people',
+            title: `${user.firstName} ${user.lastName}`,
+            subtitle: user.email,
+            imageUrl: user.profileImageUrl || '/api/placeholder/50/50',
+            description: user.bio
+          });
+        });
+      }
+
+      // Search wishlist items (if no filter or filter is 'wishlists')
+      if (!filter || filter === 'wishlists') {
+        const wishlistItems = await storage.getUserWishlist(req.user.id);
+        wishlistItems.forEach(item => {
+          if (item.name.toLowerCase().includes(searchTerm) || 
+              (item.brand && item.brand.toLowerCase().includes(searchTerm))) {
+            searchResults.push({
+              id: `wishlist-${item.id}`,
+              type: 'wishlists',
+              title: item.name,
+              subtitle: item.brand || 'Unknown Brand',
+              imageUrl: item.imageUrl,
+              description: item.description
+            });
+          }
+        });
+      }
+
+      // Search lookboards (if no filter or filter is 'lookboards')
+      if (!filter || filter === 'lookboards') {
+        const lookboards = await storage.getUserLookboards(req.user.id);
+        lookboards.forEach(lookboard => {
+          if (lookboard.title.toLowerCase().includes(searchTerm) ||
+              lookboard.description?.toLowerCase().includes(searchTerm)) {
+            searchResults.push({
+              id: `lookboard-${lookboard.id}`,
+              type: 'lookboards',
+              title: lookboard.title,
+              subtitle: 'Lookboard',
+              imageUrl: lookboard.imageUrl || '/api/placeholder/50/50',
+              description: lookboard.description
+            });
+          }
+        });
+      }
+
+      // Search OOTD/Outfits (mock data for now)
+      if (!filter || filter === 'ootd') {
+        const ootdResults = [
+          {
+            id: 'ootd-1',
+            type: 'ootd',
+            title: 'Summer Casual Look',
+            subtitle: 'Outfit of the day',
+            imageUrl: '/api/placeholder/50/50',
+            description: 'Perfect for brunch with friends'
+          },
+          {
+            id: 'ootd-2', 
+            type: 'ootd',
+            title: 'Business Chic',
+            subtitle: 'Outfit of the day',
+            imageUrl: '/api/placeholder/50/50',
+            description: 'Professional yet stylish'
+          }
+        ].filter(ootd => 
+          ootd.title.toLowerCase().includes(searchTerm) ||
+          ootd.description.toLowerCase().includes(searchTerm)
+        );
+        
+        searchResults.push(...ootdResults);
+      }
+
+      // Search news/trends (if no filter or filter is 'news')
+      if (!filter || filter === 'news') {
+        const newsResults = [
+          {
+            id: 'news-1',
+            type: 'news',
+            title: 'Summer Color Trends 2024',
+            subtitle: 'Fashion News',
+            imageUrl: '/api/placeholder/50/50',
+            description: 'Bold and vibrant colors dominating this season'
+          },
+          {
+            id: 'news-2',
+            type: 'news', 
+            title: 'Sustainable Fashion Movement',
+            subtitle: 'Fashion News',
+            imageUrl: '/api/placeholder/50/50',
+            description: 'Eco-friendly brands gaining popularity'
+          }
+        ].filter(news => 
+          news.title.toLowerCase().includes(searchTerm) ||
+          news.description.toLowerCase().includes(searchTerm)
+        );
+        
+        searchResults.push(...newsResults);
+      }
+
+      // Sort by relevance (exact matches first, then partial matches)
+      searchResults.sort((a, b) => {
+        const aExact = a.title.toLowerCase() === searchTerm;
+        const bExact = b.title.toLowerCase() === searchTerm;
+        if (aExact && !bExact) return -1;
+        if (!aExact && bExact) return 1;
+        return 0;
+      });
+
+      res.json(searchResults.slice(0, 20)); // Limit to 20 results
+    } catch (error) {
+      console.error("Error searching:", error);
+      res.status(500).json({ message: "Failed to search" });
     }
   });
 

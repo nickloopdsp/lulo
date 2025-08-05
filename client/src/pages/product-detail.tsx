@@ -67,7 +67,40 @@ export default function ProductDetail() {
     queryKey: ["/api/wishlist"],
   });
 
-  const item = wishlistItems.find(item => item.id.toString() === id);
+  // Check if we have visual search data in URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const visualSearchData = urlParams.get('data');
+  
+  let item = wishlistItems.find(item => item.id.toString() === id);
+  
+  // If from visual search, create a temporary item from the data
+  if (visualSearchData && !item) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(visualSearchData));
+      item = {
+        id: parseInt(id),
+        userId: 'visual-search',
+        itemId: parseInt(id),
+        folder: null,
+        notes: null,
+        priority: null,
+        visibility: null,
+        giftMe: null,
+        createdAt: Date.now(),
+        name: parsed.name,
+        description: null,
+        price: parseFloat(parsed.price.replace(/[^0-9.]/g, '')),
+        currency: 'USD',
+        brand: parsed.brand,
+        imageUrl: parsed.imageUrl,
+        sourceUrl: null,
+        category: 'Fashion',
+        isPublic: true
+      };
+    } catch (e) {
+      console.error('Failed to parse visual search data:', e);
+    }
+  }
 
   // Fetch retailers when item or country changes
   useEffect(() => {
@@ -362,6 +395,50 @@ export default function ProductDetail() {
             </AccordionContent>
           </AccordionItem>
         </Accordion>
+
+        {/* Action Buttons - Show for visual search results */}
+        {window.location.search.includes('from=visual-search') && (
+          <div className="mt-6 space-y-3">
+            <Button
+              variant="outline"
+              className="w-full py-3 rounded-lg font-medium border-gray-200"
+              onClick={() => {
+                toast({
+                  title: "Added to Wishlist",
+                  description: `${item.name} has been added to your wishlist.`,
+                });
+              }}
+            >
+              Add to Wishlist
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="w-full py-3 rounded-lg font-medium border-gray-200"
+              onClick={() => {
+                toast({
+                  title: "Added to Closet",
+                  description: `${item.name} has been added to your closet.`,
+                });
+              }}
+            >
+              Add to Closet
+            </Button>
+            
+            <Button
+              variant="outline"
+              className="w-full py-3 rounded-lg font-medium border-gray-200"
+              onClick={() => {
+                toast({
+                  title: "Sent to The Board",
+                  description: `${item.name} has been sent to The Board.`,
+                });
+              }}
+            >
+              Send to The Board
+            </Button>
+          </div>
+        )}
 
         {/* International Shopping Preferences */}
         <div className="mt-6">

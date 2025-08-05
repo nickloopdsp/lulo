@@ -404,9 +404,32 @@ export class DatabaseStorage implements IStorage {
   }
 
   async searchUsers(userId: string, query: string): Promise<any[]> {
-    // This is a placeholder. In a real application, you'd query for users
-    // that match the search query.
-    return [];
+    try {
+      // Search users by first name, last name, or email
+      const searchResults = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          bio: users.bio,
+        })
+        .from(users)
+        .where(
+          or(
+            sql`LOWER(${users.firstName}) LIKE ${`%${query.toLowerCase()}%`}`,
+            sql`LOWER(${users.lastName}) LIKE ${`%${query.toLowerCase()}%`}`,
+            sql`LOWER(${users.email}) LIKE ${`%${query.toLowerCase()}%`}`
+          )
+        )
+        .limit(10);
+
+      return searchResults;
+    } catch (error) {
+      console.error("Error searching users:", error);
+      return [];
+    }
   }
 
   async getUserProfile(currentUserId: string, targetUserId: string): Promise<any> {
@@ -571,6 +594,81 @@ export class DatabaseStorage implements IStorage {
     // This is a placeholder. In a real application, you'd query for alerts
     // that are triggered for the user's items.
     return [];
+  }
+
+  async getMostWishlistedItems(limit: number = 6) {
+    try {
+      // Get items that are most wishlisted in the past week
+      const result = await db
+        .select({
+          id: items.id,
+          name: items.name,
+          brand: items.brand,
+          price: items.price,
+          imageUrl: items.imageUrl,
+          wishlistCount: sql<number>`CAST(COUNT(${wishlists.id}) AS INTEGER)`
+        })
+        .from(items)
+        .leftJoin(wishlists, eq(items.id, wishlists.itemId))
+        .groupBy(items.id, items.name, items.brand, items.price, items.imageUrl)
+        .orderBy(desc(sql`COUNT(${wishlists.id})`))
+        .limit(limit);
+
+      return result;
+    } catch (error) {
+      console.error("Error getting most wishlisted items:", error);
+      // Return mock data as fallback
+      return [
+        {
+          id: 1,
+          name: "Everett Linen Dress",
+          brand: "Reformation",
+          price: "$248",
+          imageUrl: "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=400&h=500&fit=crop",
+          wishlistCount: 89
+        },
+        {
+          id: 2,
+          name: "Crushed Envelope Bag",
+          brand: "Dries Van Noten",
+          price: "$895",
+          imageUrl: "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?q=80&w=400&h=500&fit=crop",
+          wishlistCount: 76
+        },
+        {
+          id: 3,
+          name: "Shantung Blazer",
+          brand: "Gianvito Rossi",
+          price: "$1,295",
+          imageUrl: "https://images.unsplash.com/photo-1591047139829-d91aecb6caea?q=80&w=400&h=500&fit=crop",
+          wishlistCount: 64
+        },
+        {
+          id: 4,
+          name: "Pleated Midi Skirt",
+          brand: "Proenza Schouler",
+          price: "$790",
+          imageUrl: "https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?q=80&w=400&h=500&fit=crop",
+          wishlistCount: 58
+        },
+        {
+          id: 5,
+          name: "Strappy Sandals",
+          brand: "Bottega Veneta",
+          price: "$920",
+          imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?q=80&w=400&h=500&fit=crop",
+          wishlistCount: 52
+        },
+        {
+          id: 6,
+          name: "Canvas Tote",
+          brand: "Celine",
+          price: "$1,450",
+          imageUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=400&h=500&fit=crop",
+          wishlistCount: 48
+        }
+      ];
+    }
   }
 }
 

@@ -2,6 +2,17 @@ import { db } from "../db";
 import { items, wishlists, closets } from "../../shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
+export interface FashionProduct {
+  id: string;
+  name: string;
+  brand: string;
+  price: string;
+  originalPrice?: string;
+  imageUrl: string;
+  sourceUrl: string;
+  shopAtText: string;
+}
+
 export interface FashionArticle {
   id: string;
   title: string;
@@ -13,6 +24,9 @@ export interface FashionArticle {
   publishedDate: string;
   readTime: string;
   relevanceScore?: number;
+  content?: string;
+  heroImage?: string;
+  embeddedProducts?: FashionProduct[];
 }
 
 // Mock data for now - in production, this would fetch from actual APIs
@@ -35,7 +49,17 @@ const curatedArticles: FashionArticle[] = [
     source: "HARPER'S BAZAAR",
     category: "Trends",
     publishedDate: new Date().toISOString(),
-    readTime: "10 min read"
+    readTime: "10 min read",
+    content: `<p>Spring 2025 runways have spoken, and the message is clear: fashion is embracing both maximalism and minimalism in equal measure. From bold florals to clean lines, here are the top trends that will define the upcoming season.</p>
+
+<h3>1. Maximalist Florals</h3>
+<p>Oversized blooms and intricate botanical prints dominated the runways at Valentino, Dolce & Gabbana, and Erdem. These aren't your grandmother's flower prints – think bold, graphic interpretations of nature.</p>
+
+<h3>2. New Minimalism</h3>
+<p>Clean lines and neutral palettes made a strong statement at Jil Sander and The Row. This isn't stark minimalism, but rather a softer, more approachable take on simplicity.</p>
+
+<h3>3. Sustainable Luxury</h3>
+<p>Eco-conscious materials and transparent production processes are becoming the norm rather than the exception, with brands like Stella McCartney leading the charge.</p>`
   },
   
   // Who What Wear - Shopping
@@ -48,7 +72,17 @@ const curatedArticles: FashionArticle[] = [
     source: "WHO WHAT WEAR UK",
     category: "Shopping",
     publishedDate: new Date().toISOString(),
-    readTime: "5 min read"
+    readTime: "5 min read",
+    content: `<p>High street fashion has never looked more luxurious. This week's picks prove that you don't need to spend a fortune to look like you did. From elevated basics to statement pieces, these finds rival designer quality without the hefty price tag.</p>
+
+<h3>1. The Perfect White Shirt</h3>
+<p>COS delivers with their crisp cotton shirt that could easily pass for a designer piece. The attention to detail and quality of construction is exceptional for the price point.</p>
+
+<h3>2. Investment Blazer</h3>
+<p>& Other Stories' tailored blazer offers the same sharp silhouette you'd find at luxury fashion houses, but at a fraction of the cost.</p>
+
+<h3>3. Timeless Trench</h3>
+<p>Mango's trench coat delivers classic style with modern touches. The fit and finish rival pieces costing three times as much.</p>`
   },
   
   // Who What Wear - Outfit Ideas
@@ -64,17 +98,64 @@ const curatedArticles: FashionArticle[] = [
     readTime: "6 min read"
   },
   
-  // Who What Wear - Trends
+  // Who What Wear - Trends  
   {
     id: "wwwtrends-1",
-    title: "6 Autumn/Winter Trends Fashion People Are Already Wearing",
-    description: "Get ahead of the curve with these editor-approved trends that are already making waves on the streets.",
+    title: "6 Top Color Trends We're Investing in This Summer",
+    description: "Summer is the best season to play with color. The warmer months have a tendency to bring brighter fashion choices, even for those who generally gravitate towards neutrals in their wardrobe.",
     imageUrl: "/api/placeholder/400/500",
     articleUrl: "https://www.whowhatwear.com/fashion/trends",
-    source: "WHO WHAT WEAR UK",
+    source: "WHO WHAT WEAR",
     category: "Trends",
     publishedDate: new Date().toISOString(),
-    readTime: "8 min read"
+    readTime: "8 min read",
+    heroImage: "/api/placeholder/800/400",
+    content: `<p>Summer is the best season to play with color. The warmer months have a tendency to bring brighter fashion choices, even for those who generally gravitate towards neutrals in their wardrobe. The top global color trends play with many themes we have seen across the spring/summer 2025 runways.</p>
+
+<p>Pastels continue to rule. We saw a continuation of the <a href="#" class="text-blue-600 underline">butter yellow</a> trend at Proenza Schouler, Prada, and Loewe, while <a href="#" class="text-blue-600 underline">ballet pink</a> won us over at Chanel, Khaite, and Victoria Beckham, by way of dreamy light-as-air dresses and separates that are ideal for battling a summer heatwave, to wear to <a href="#" class="text-blue-600 underline">work</a> or on an upcoming <a href="#" class="text-blue-600 underline">vacation</a>.</p>
+
+<div class="product-showcase">PRODUCTS_SHOWCASE_1</div>
+
+<p><a href="#" class="text-blue-600 underline">Butter yellow</a> continues to make us melt. Take this softer shade for a spin at the office, with a cream vest and full skirt, or a slinky slip dress for a night out. <a href="#" class="text-blue-600 underline">Woven ballet flats</a> and a structured bag are easy ways to test drive the trend with a subtle pop, should you prefer not to go head-to-toe monochrome.</p>
+
+<h2>1. Butter Yellow</h2>
+<p>This soft, creamy shade of yellow has been everywhere this season. From flowing dresses to tailored blazers, butter yellow brings warmth and sophistication to any wardrobe. We've seen it styled beautifully at luxury brands and it's now trickling down to accessible fashion.</p>
+
+<p>The key to wearing butter yellow is to treat it as you would a neutral. It pairs beautifully with white, cream, and even bold colors like navy or forest green for a more adventurous look.</p>
+
+<h2>2. Ballet Pink</h2>
+<p>Soft, romantic ballet pink continues to dominate the fashion landscape. This delicate shade works beautifully in flowing fabrics like chiffon and silk, creating an ethereal, feminine aesthetic that's perfect for both day and evening wear.</p>
+
+<p>Style ballet pink with crisp whites for a fresh, modern look, or layer different shades of pink together for a tonal approach that feels sophisticated and current.</p>`,
+    embeddedProducts: [
+      {
+        id: "victoria-vest-1",
+        name: "Victoria Beckham Vest",
+        brand: "Victoria Beckham",
+        price: "£450",
+        imageUrl: "/api/placeholder/200/250",
+        sourceUrl: "https://www.victoriabeckham.com",
+        shopAtText: "SHOP AT VICTORIA BECKHAM"
+      },
+      {
+        id: "rae-sophie-skirt-1", 
+        name: "Rae Sophie Adam Skirt",
+        brand: "Rae Sophie",
+        price: "£245",
+        imageUrl: "/api/placeholder/200/250",
+        sourceUrl: "https://www.raesophie.com",
+        shopAtText: "SHOP AT RAE SOPHIE"
+      },
+      {
+        id: "black-suede-flats-1",
+        name: "Black Suede Walla-Wee Flats",
+        brand: "Black Suede Studio",
+        price: "£185",
+        imageUrl: "/api/placeholder/200/250", 
+        sourceUrl: "https://www.blacksudestudio.com",
+        shopAtText: "SHOP AT BLACK SUEDE"
+      }
+    ]
   },
   
   // Vogue
@@ -212,5 +293,25 @@ export class FashionNewsService {
       "monochrome outfits",
       "vintage denim"
     ];
+  }
+
+  static async getArticleById(articleId: string): Promise<FashionArticle | null> {
+    try {
+      console.log("FashionNewsService: Getting article by ID", articleId);
+      
+      // Find article in curated articles
+      const article = curatedArticles.find(article => article.id === articleId);
+      
+      if (!article) {
+        console.log("FashionNewsService: Article not found", articleId);
+        return null;
+      }
+
+      console.log("FashionNewsService: Found article", article.title);
+      return article;
+    } catch (error) {
+      console.error("Error fetching article by ID:", error);
+      return null;
+    }
   }
 } 

@@ -318,3 +318,13 @@
 [data-radix-popper-content-wrapper] {
   z-index: 9999 !important;
 }
+
+/* Hide scrollbar for horizontal scrolling areas */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
+}
