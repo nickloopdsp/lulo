@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import PriceTracker from "./price-tracker";
 import { ItemImage } from "@/components/ui/item-image";
+import RetailerButtons from "@/components/retailer-buttons";
 
 interface ItemCardProps {
   item: any;
@@ -180,16 +181,7 @@ export default function ItemCard({ item, compact = false, onRemove }: ItemCardPr
                 </PriceTracker>
               )}
               
-              {item.sourceUrl && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => window.open(item.sourceUrl, '_blank')}
-                  className="p-0 h-6 text-lulo-gray hover:text-lulo-dark"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </Button>
-              )}
+              <RetailerButtons item={item} size="xs" />
             </div>
             
             <Dialog open={showWishlistModal} onOpenChange={setShowWishlistModal}>

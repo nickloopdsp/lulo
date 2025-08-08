@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import MasonryLayout from "@/components/masonry-layout";
 import { ItemImage } from "@/components/ui/item-image";
+import RetailerButtons from "@/components/retailer-buttons";
 
 type SimilarProduct = {
   name: string;
@@ -17,6 +18,8 @@ export default function SimilarProductsPage() {
   const [, navigate] = useLocation();
   const [isLoading, setIsLoading] = useState(true);
   const [results, setResults] = useState<SimilarProduct[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const FALLBACK_URLS = [
     "https://www.revolveclothing.fr/jaded-london-layered-button-mini-dress-in-orange/dp/JLON-WD92/?d=Womens&page=1&lc=26&itrownum=7&itcurrpage=1&itview=05&hsclk23486=3&hspos=1",
     "https://www.revolveclothing.fr/lioness-district-maxi-dress-in-onyx-polka/dp/LIOR-WD104/?d=Womens&sectionURL=https%3A%2F%2Fwww.revolveclothing.fr%2Flioness-dresses%2Fbr%2Fd32393%2F%3F%26keyword%3DLIONESS%2BDISTRICT%2BMAXI%2BDRESS",
@@ -44,6 +47,7 @@ export default function SimilarProductsPage() {
         const list = Array.isArray(data) ? data : [];
         if (list.length > 0) {
           setResults(list);
+          setHasMore(list.length >= 12);
           return;
         }
         // Fallback: scrape provided URLs
@@ -70,14 +74,37 @@ export default function SimilarProductsPage() {
           } catch {}
         }
         setResults(scraped);
+        setHasMore(false);
       } catch (e) {
         setResults([]);
+        setHasMore(false);
       } finally {
         setIsLoading(false);
       }
     };
     fetchSimilar();
   }, [itemParam]);
+
+  // Infinite scroll: append more items by repeating or slicing existing list (demo)
+  useEffect(() => {
+    if (page === 1) return;
+    // For demo: duplicate results to simulate additional pages
+    setResults(prev => {
+      const next = [...prev, ...prev.slice(0, Math.max(0, 12 - prev.length))];
+      if (next.length >= 60) setHasMore(false);
+      return next;
+    });
+  }, [page]);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (!hasMore || isLoading) return;
+      const nearBottom = window.innerHeight + window.scrollY >= document.body.offsetHeight - 200;
+      if (nearBottom) setPage(p => p + 1);
+    };
+    window.addEventListener('scroll', onScroll);
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [hasMore, isLoading]);
 
   return (
     <div className="mobile-main bg-white">
@@ -102,23 +129,40 @@ export default function SimilarProductsPage() {
             {(Array.isArray(results) ? results : []).map((p, idx) => (
               <div
                 key={`${p.name}-${idx}`}
-                className="masonry-item group cursor-pointer transform transition-all duration-300 hover:scale-[1.02]"
-                onClick={() => {
-                  const tempId = (2000000 + idx).toString();
-                  const data = {
-                    name: p.name,
-                    brand: p.brand || '',
-                    price: typeof p.price === 'number' ? `$${p.price}` : (p.price || ''),
-                    imageUrl: p.imageUrl || '',
-                    sourceUrl: '',
-                  };
-                  navigate(`/item/${tempId}?data=${encodeURIComponent(JSON.stringify(data))}`);
-                }}
+                className="masonry-item group transform transition-all duration-300 hover:scale-[1.02]"
               >
                 <ItemImage imageUrl={p.imageUrl} alt={p.name} className="w-full h-auto object-cover" />
                 <div className="p-3">
                   <h3 className="font-semibold text-sm text-lulo-dark mb-1">{p.brand || '—'}</h3>
                   <p className="text-xs text-gray-600 line-clamp-2">{p.name}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="px-2 py-1 h-7 text-xs"
+                      onClick={() => {
+                        const tempId = (2000000 + idx).toString();
+                        const data = {
+                          name: p.name,
+                          brand: p.brand || '',
+                          price: typeof p.price === 'number' ? `$${p.price}` : (p.price || ''),
+                          imageUrl: p.imageUrl || '',
+                          sourceUrl: '',
+                        };
+                        navigate(`/item/${tempId}?data=${encodeURIComponent(JSON.stringify(data))}`);
+                      }}
+                    >
+                      View
+                    </Button>
+                    <RetailerButtons item={{
+                      name: p.name,
+                      brand: p.brand,
+                      category: p.category,
+                      price: p.price,
+                      imageUrl: p.imageUrl,
+                      sourceUrl: ''
+                    }} size="xs" />
+                  </div>
                 </div>
               </div>
             ))}
