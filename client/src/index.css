@@ -292,6 +292,11 @@
     box-shadow: 0 8px 25px rgba(250, 218, 221, 0.3);
   }
 
+  /* Utility to hide heart icons within a scope */
+  .hide-hearts :is(svg.lucide-heart, .lucide-heart) {
+    display: none !important;
+  }
+
   /* Active States */
   .lulo-active {
     background-color: #FADADD !important;

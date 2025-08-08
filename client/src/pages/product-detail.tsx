@@ -318,6 +318,8 @@ export default function ProductDetail() {
     );
   }
 
+  const hideHearts = new URLSearchParams(window.location.search).get('src') === 'trends';
+
   return (
     <div className="mobile-main bg-white">
       {/* Header */}
@@ -352,31 +354,33 @@ export default function ProductDetail() {
       </div>
 
       {/* Product Image */}
-      <div className="relative">
+      <div className={`relative ${hideHearts ? 'hide-hearts' : ''}`}>
         <ItemImage
           imageUrl={item.imageUrl}
           alt={item.name}
           className="w-full h-96 object-cover"
         />
-        <Button
-          variant="ghost"
-          size="sm"
-          className="absolute top-4 right-4 p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100"
-        >
-          <Heart className="w-5 h-5" />
-        </Button>
+        {!hideHearts && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="absolute top-4 right-4 p-2 bg-white bg-opacity-80 rounded-full hover:bg-opacity-100"
+          >
+            <Heart className="w-5 h-5" />
+          </Button>
+        )}
       </div>
 
       {/* Product Info */}
       <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
+        <div className={`flex items-start justify-between mb-2 ${hideHearts ? 'hide-hearts' : ''}`}>
           <div>
             <h1 className="text-xl font-semibold text-lulo-dark mb-1">
               {item.brand?.toUpperCase()}
             </h1>
             <p className="text-lulo-gray text-sm">{item.name}</p>
           </div>
-          <Heart className="w-6 h-6 text-lulo-gray" />
+          {!hideHearts && <Heart className="w-6 h-6 text-lulo-gray" />}
         </div>
 
         {/* Product Details Accordion */}

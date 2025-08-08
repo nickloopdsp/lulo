@@ -120,7 +120,7 @@ export default function NewsfeedPage() {
   };
 
   const handleItemClick = (itemId: number) => {
-    navigate(`/item/${itemId}`);
+    navigate(`/item/${itemId}?src=trends`);
   };
 
   return (
@@ -270,7 +270,7 @@ export default function NewsfeedPage() {
           </div>
         ) : (
           /* Trending Content */
-          <div className="space-y-6">
+          <div className="space-y-6 hide-hearts">
             {/* Trending Items */}
             <div>
               <h2 className="text-lg font-semibold">Most Wishlisted Items This Week</h2>
