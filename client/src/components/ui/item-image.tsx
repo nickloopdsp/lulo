@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 interface ItemImageProps {
   imageUrl?: string | null;
@@ -19,12 +19,29 @@ export const ItemImage = ({
 }: ItemImageProps) => {
   const [imageError, setImageError] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [useOriginal, setUseOriginal] = useState(false);
 
   // Check if the imageUrl is a valid URL or base64 data
   const isValidImage = imageUrl && imageUrl.trim() !== '';
   const placeholderUrl = `/api/placeholder/${width}/${height}`;
+  const proxiedUrl = useMemo(() => {
+    if (!imageUrl) return undefined;
+    if (imageUrl.startsWith('/api/')) return imageUrl; // already proxied or local
+    try {
+      new URL(imageUrl);
+      return `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`;
+    } catch {
+      return imageUrl;
+    }
+  }, [imageUrl]);
 
   const handleImageError = () => {
+    if (!useOriginal && proxiedUrl && imageUrl && proxiedUrl !== imageUrl) {
+      setUseOriginal(true);
+      setIsLoading(true);
+      setImageError(false);
+      return;
+    }
     setImageError(true);
     setIsLoading(false);
   };
@@ -54,7 +71,7 @@ export const ItemImage = ({
         </div>
       )}
       <img 
-        src={imageUrl}
+        src={useOriginal ? (imageUrl || '') : (proxiedUrl || '')}
         alt={alt}
         className={`${className} ${isLoading && showLoading ? 'opacity-0' : 'opacity-100'} transition-opacity duration-300`}
         onLoad={handleImageLoad}
