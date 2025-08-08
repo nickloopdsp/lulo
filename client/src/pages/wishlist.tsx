@@ -10,6 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ItemImage } from "@/components/ui/item-image";
 import MasonryLayout from "@/components/masonry-layout";
+import { useInfiniteSlice } from "@/hooks/useInfiniteSlice";
 import AddItemModal from "@/components/add-item-modal";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -448,12 +449,20 @@ export default function Wishlist() {
               </div>
             </div>
 
-            {/* Items Grid */}
-            <MasonryLayout>
-              {filteredItems.map((item: WishlistItem) => (
-                <WishlistItemCard key={item.id} item={item} />
-              ))}
-            </MasonryLayout>
+            {/* Items Grid with Infinite Scroll */}
+            {(() => {
+              const { visible, sentinelRef } = useInfiniteSlice<WishlistItem>(filteredItems, 20);
+              return (
+                <>
+                  <MasonryLayout>
+                    {visible.map((item: WishlistItem) => (
+                      <WishlistItemCard key={item.id} item={item} />
+                    ))}
+                  </MasonryLayout>
+                  <div ref={sentinelRef} />
+                </>
+              );
+            })()}
           </>
         )}
       </div>
