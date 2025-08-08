@@ -334,14 +334,7 @@ export default function ProductDetail() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleSeeMoreLikeThis}
-            className="text-sm font-medium"
-          >
-            See more like this
-          </Button>
+          {/* Removed top bar CTA; moved below brand/name per design */}
           
           <Button
             variant="ghost"
@@ -381,6 +374,17 @@ export default function ProductDetail() {
             <p className="text-lulo-gray text-sm">{item.name}</p>
           </div>
           {!hideHearts && <Heart className="w-6 h-6 text-lulo-gray" />}
+        </div>
+
+        {/* See More Like This CTA (glass + pink accents) */}
+        <div className="mt-3">
+          <Button
+            onClick={handleSeeMoreLikeThis}
+            variant="outline"
+            className="w-full glass-button-lulo border border-[#FADADD]/50 text-lulo-pink-accent font-medium py-3 rounded-xl"
+          >
+            See more like this
+          </Button>
         </div>
 
         {/* Product Details Accordion */}
