@@ -144,7 +144,29 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       />
       
       {/* Search Overlay */}
-      <div className="fixed inset-0 bg-white z-50 flex flex-col" style={{ top: '80px' }}>
+      <div className="fixed inset-0 bg-white z-50 flex flex-col overflow-hidden" style={{ top: '80px' }}>
+        {/* Floating Lulo icons for ambience */}
+        <div className="pointer-events-none absolute inset-0">
+          {/* Use multiple instances with different speeds and directions */}
+          <div className="lulo-float" style={{ top: '10%', left: '5%', ['--dur' as any]: '16s', ['--dx' as any]: '60vw', ['--dy' as any]: '35vh' }}>
+            <svg width="56" height="56" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M45 5 C45 5, 48 2, 52 8 C56 14, 54 18, 50 20" stroke="#FADADD" strokeWidth="3" strokeLinecap="round"/>
+              <circle cx="50" cy="60" r="35" stroke="#FADADD" strokeWidth="3" fill="none"/>
+            </svg>
+          </div>
+          <div className="lulo-float" style={{ top: '60%', left: '10%', ['--dur' as any]: '18s', ['--dx' as any]: '50vw', ['--dy' as any]: '-30vh' }}>
+            <svg width="44" height="44" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M45 5 C45 5, 48 2, 52 8 C56 14, 54 18, 50 20" stroke="#FADADD" strokeWidth="2.5" strokeLinecap="round"/>
+              <circle cx="50" cy="60" r="35" stroke="#FADADD" strokeWidth="2.5" fill="none"/>
+            </svg>
+          </div>
+          <div className="lulo-float" style={{ top: '25%', left: '70%', ['--dur' as any]: '14s', ['--dx' as any]: '-55vw', ['--dy' as any]: '30vh' }}>
+            <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M45 5 C45 5, 48 2, 52 8 C56 14, 54 18, 50 20" stroke="#FADADD" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="50" cy="60" r="35" stroke="#FADADD" strokeWidth="2" fill="none"/>
+            </svg>
+          </div>
+        </div>
         {/* Header with Back Button */}
         <div className="bg-white px-4 pt-4 pb-4 border-b border-gray-200">
           <div className="max-w-md mx-auto">

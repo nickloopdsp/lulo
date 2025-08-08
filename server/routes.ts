@@ -166,6 +166,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Duplicate wishlist folder
+  app.post('/api/wishlist/folders/duplicate', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { source, target } = req.body as { source: string; target: string };
+      if (!source || !target) {
+        return res.status(400).json({ message: "Source and target folder names are required" });
+      }
+      const result = await storage.duplicateWishlistFolder(userId, source, target);
+      res.json({ message: 'Folder duplicated', ...result });
+    } catch (error) {
+      console.error("Error duplicating wishlist folder:", error);
+      res.status(500).json({ message: "Failed to duplicate folder" });
+    }
+  });
+
   // Closet routes
   app.get('/api/closet', isAuthenticated, async (req: any, res) => {
     try {

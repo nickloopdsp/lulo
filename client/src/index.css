@@ -474,6 +474,24 @@
   }
 }
 
+/* Diagonal floating with border bounce illusion (alternate direction) */
+@keyframes float-diagonal {
+  from {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  to {
+    transform: translate(var(--dx, 40vw), var(--dy, 25vh)) rotate(360deg);
+  }
+}
+
+.lulo-float {
+  position: absolute;
+  opacity: 0.08;
+  animation: float-diagonal var(--dur, 14s) linear infinite alternate;
+  will-change: transform;
+  pointer-events: none;
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);

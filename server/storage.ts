@@ -45,6 +45,7 @@ export interface IStorage {
   addToWishlist(wishlist: InsertWishlist): Promise<Wishlist>;
   removeFromWishlist(userId: string, itemId: number): Promise<void>;
   deleteWishlistFolder(userId: string, folderName: string): Promise<void>;
+    duplicateWishlistFolder(userId: string, sourceFolder: string, targetFolder: string): Promise<{ created: number }>; 
   updateWishlistItem(userId: string, wishlistId: number, updates: Partial<Wishlist>): Promise<Wishlist>;
   
   // Closet operations
@@ -244,6 +245,43 @@ export class DatabaseStorage implements IStorage {
         .delete(wishlists)
         .where(and(eq(wishlists.userId, userId), eq(wishlists.folder, folderName)));
     }
+  }
+
+  async duplicateWishlistFolder(userId: string, sourceFolder: string, targetFolder: string): Promise<{ created: number }> {
+    // Fetch all items in the source folder (case-insensitive)
+    const sourceRows = await db
+      .select({ itemId: wishlists.itemId })
+      .from(wishlists)
+      .where(and(
+        eq(wishlists.userId, userId),
+        sql`LOWER(${wishlists.folder}) = LOWER(${sourceFolder})`
+      ));
+
+    if (sourceRows.length === 0) {
+      return { created: 0 };
+    }
+
+    // Fetch existing items in target to avoid duplicates
+    const existingTarget = await db
+      .select({ itemId: wishlists.itemId })
+      .from(wishlists)
+      .where(and(
+        eq(wishlists.userId, userId),
+        sql`LOWER(${wishlists.folder}) = LOWER(${targetFolder})`
+      ));
+    const existingSet = new Set(existingTarget.map(r => r.itemId));
+
+    const toInsert = sourceRows
+      .filter(r => !existingSet.has(r.itemId))
+      .map(r => ({ userId, itemId: r.itemId, folder: targetFolder }));
+
+    if (toInsert.length === 0) {
+      return { created: 0 };
+    }
+
+    await db.insert(wishlists).values(toInsert);
+
+    return { created: toInsert.length };
   }
 
   async updateWishlistItem(userId: string, wishlistId: number, updates: Partial<Wishlist>): Promise<Wishlist> {
