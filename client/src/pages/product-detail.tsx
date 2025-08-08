@@ -290,8 +290,14 @@ export default function ProductDetail() {
   ];
 
   const handleSeeMoreLikeThis = () => {
-    // Navigate to search with similar items
-    navigate(`/search?similar=${encodeURIComponent(item?.name || "")}`);
+    const payload = {
+      name: item?.name,
+      brand: item?.brand,
+      category: item?.category,
+      price: item?.price,
+      imageUrl: item?.imageUrl,
+    };
+    navigate(`/similar?item=${encodeURIComponent(JSON.stringify(payload))}`);
   };
 
   const handleRetailerClick = (retailer: RetailerOption) => {

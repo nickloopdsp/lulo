@@ -19,6 +19,7 @@ import SocialActivity from "@/pages/social-activity";
 import Notifications from "@/pages/notifications";
 import UserProfile from "@/pages/user-profile";
 import ProductDetail from "@/pages/product-detail";
+import SimilarProductsPage from "@/pages/similar-products";
 import NewsfeedPage from "@/pages/newsfeed";
 import ArticlePage from "@/pages/article";
 import BoardroomPage from "@/pages/boardroom";
@@ -141,6 +142,12 @@ function Router() {
       <Route path="/item/:id">
         <div className="mobile-app-container">
           <ProductDetail />
+        </div>
+      </Route>
+      {/* Similar products page without top navigation */}
+      <Route path="/similar">
+        <div className="mobile-app-container">
+          <SimilarProductsPage />
         </div>
       </Route>
       
