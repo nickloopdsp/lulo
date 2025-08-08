@@ -164,6 +164,37 @@ export default function Wishlist() {
     return matchesSearch;
   });
 
+  // Ensure "Test" board exists by duplicating Mallorca if available (one-time)
+  useEffect(() => {
+    let canceled = false;
+    const ensureTestBoard = async () => {
+      try {
+        const res = await fetch('/api/wishlist/folders', { credentials: 'include' });
+        if (!res.ok) return;
+        const folders: string[] = await res.json();
+        const hasTest = folders.some(f => f.toLowerCase() === 'test');
+        const hasMallorca = folders.some(f => f.toLowerCase() === 'mallorca');
+        if (!hasTest && hasMallorca && !canceled) {
+          const dup = await fetch('/api/wishlist/folders/duplicate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ source: 'Mallorca', target: 'Test' })
+          });
+          if (dup.ok) {
+            toast({ title: 'Created "Test" wishlist', description: 'Duplicated from Mallorca' });
+            // Refresh wishlist data
+            queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
+          }
+        }
+      } catch (e) {
+        // no-op
+      }
+    };
+    ensureTestBoard();
+    return () => { canceled = true; };
+  }, [queryClient, toast]);
+
   const WishlistItemCard = ({ item }: { item: WishlistItem }) => {
     const handleItemClick = () => {
       navigate(`/item/${item.id}`);
