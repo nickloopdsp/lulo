@@ -154,6 +154,9 @@ export default function Wishlist() {
     ? wishlistItems
     : wishlistItems.filter((item: WishlistItem) => item.folder === selectedBoard);
 
+  // Infinite slice for items grid (call hooks unconditionally)
+  const { visible: visibleItems, sentinelRef } = useInfiniteSlice<WishlistItem>(filteredItems, 20);
+
   const filteredBoards = boardsData.filter((board) => {
     const matchesSearch = board.name.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -450,19 +453,12 @@ export default function Wishlist() {
             </div>
 
             {/* Items Grid with Infinite Scroll */}
-            {(() => {
-              const { visible, sentinelRef } = useInfiniteSlice<WishlistItem>(filteredItems, 20);
-              return (
-                <>
-                  <MasonryLayout>
-                    {visible.map((item: WishlistItem) => (
-                      <WishlistItemCard key={item.id} item={item} />
-                    ))}
-                  </MasonryLayout>
-                  <div ref={sentinelRef} />
-                </>
-              );
-            })()}
+            <MasonryLayout>
+              {visibleItems.map((item: WishlistItem) => (
+                <WishlistItemCard key={item.id} item={item} />
+              ))}
+            </MasonryLayout>
+            <div ref={sentinelRef} />
           </>
         )}
       </div>
