@@ -784,6 +784,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Product search routes
+  app.post('/api/products/similar', isAuthenticated, async (req: any, res) => {
+    try {
+      const { item, limit = 12 } = req.body || {};
+      if (!item) {
+        return res.status(400).json({ message: 'Product item data is required' });
+      }
+      const similar = await productSearchService.searchSimilarProducts(item, limit);
+      // Ensure array response
+      if (!Array.isArray(similar)) {
+        return res.json([]);
+      }
+      res.json(similar);
+    } catch (error) {
+      console.error('Error fetching similar products:', error);
+      res.status(500).json({ message: 'Failed to fetch similar products' });
+    }
+  });
   app.post('/api/products/search-retailers', isAuthenticated, async (req: any, res) => {
     try {
       const { item, region = 'USA' } = req.body;
