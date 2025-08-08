@@ -40,11 +40,14 @@ interface AddItemModalProps {
 export default function AddItemModal({ onSuccess, prefillData = {} }: AddItemModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [addMethod, setAddMethod] = useState<"manual" | "camera" | "link" | null>(null);
+  const [addMethod, setAddMethod] = useState<"manual" | "camera" | "link" | "createWishlist" | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
   const [isScrapingLink, setIsScrapingLink] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [isCreatingNewFolder, setIsCreatingNewFolder] = useState(false);
+  const [wishlistName, setWishlistName] = useState("");
+  const [wishlistPrivacy, setWishlistPrivacy] = useState("public");
+  const [isCreatingWishlist, setIsCreatingWishlist] = useState(false);
 
   // Query for existing wishlist folders
   const { data: existingFolders = [] } = useQuery({
@@ -190,6 +193,52 @@ export default function AddItemModal({ onSuccess, prefillData = {} }: AddItemMod
     }
   };
 
+  const handleCreateWishlist = async () => {
+    if (!wishlistName.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a wishlist name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCreatingWishlist(true);
+    try {
+      // TODO: Replace with actual API call to create wishlist
+      const response = await fetch('/api/wishlist/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: wishlistName,
+          privacy: wishlistPrivacy 
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create wishlist');
+
+      toast({
+        title: "Success",
+        description: `Wishlist "${wishlistName}" created successfully!`,
+      });
+
+      // Reset form and close modal
+      setWishlistName("");
+      setWishlistPrivacy("public");
+      queryClient.invalidateQueries({ queryKey: ['/api/wishlist'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/wishlist/folders'] });
+      onSuccess?.();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create wishlist. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingWishlist(false);
+    }
+  };
+
   const currentDestination = form.watch('destination');
 
   return (
@@ -224,6 +273,16 @@ export default function AddItemModal({ onSuccess, prefillData = {} }: AddItemMod
             >
               <Plus className="w-5 h-5" />
               <span>Add Manually</span>
+            </Button>
+
+            <div className="border-t border-gray-200 my-4"></div>
+
+            <Button
+              className="w-full bg-[#FADADD] hover:bg-[#FADADD]/90 text-white p-4 rounded-xl flex items-center justify-center space-x-3"
+              onClick={() => setAddMethod("createWishlist")}
+            >
+              <Heart className="w-5 h-5" />
+              <span>Create New Wishlist</span>
             </Button>
           </div>
         </div>
@@ -293,6 +352,65 @@ export default function AddItemModal({ onSuccess, prefillData = {} }: AddItemMod
           >
             Add Details Manually Instead
           </Button>
+        </div>
+      ) : addMethod === "createWishlist" ? (
+        <div className="space-y-4">
+          <div className="text-center">
+            <h4 className="text-lg font-semibold mb-2">Create New Wishlist</h4>
+            <p className="text-sm text-gray-600">
+              Create a new wishlist to organize your saved items
+            </p>
+          </div>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Wishlist Name
+              </label>
+              <Input
+                placeholder="Enter wishlist name..."
+                value={wishlistName}
+                onChange={(e) => setWishlistName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Privacy Setting
+              </label>
+              <Select value={wishlistPrivacy} onValueChange={setWishlistPrivacy}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select privacy setting" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Public - Anyone can view</SelectItem>
+                  <SelectItem value="private">Private - Only you can view</SelectItem>
+                  <SelectItem value="collaborative">Collaborative - Shared with friends</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex space-x-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => setAddMethod(null)}
+              className="flex-1"
+            >
+              Back
+            </Button>
+            <Button
+              onClick={handleCreateWishlist}
+              disabled={isCreatingWishlist}
+              className="flex-1 bg-[#FADADD] hover:bg-[#FADADD]/90 text-white"
+            >
+              {isCreatingWishlist ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                'Create Wishlist'
+              )}
+            </Button>
+          </div>
         </div>
       ) : (
         <Form {...form}>

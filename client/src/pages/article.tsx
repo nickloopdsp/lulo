@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
-import { ArrowLeft, Search, ChevronDown } from "lucide-react";
+import { ArrowLeft, MoreVertical, MessageCircle, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
 import EmbeddedProductCard from "@/components/embedded-product-card";
 
 interface FashionProduct {
@@ -35,7 +37,8 @@ export default function ArticlePage() {
   const [, navigate] = useLocation();
   const [article, setArticle] = useState<FashionArticle | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"global" | "trends">("global");
+
+  const { toast } = useToast();
 
   useEffect(() => {
     if (params?.articleId) {
@@ -65,6 +68,53 @@ export default function ArticlePage() {
 
   const handleBack = () => {
     navigate("/newsfeed");
+  };
+
+  const handleExternalShare = async () => {
+    if (!article) return;
+    
+    const shareData = {
+      title: article.title,
+      text: `Check out this article: ${article.title}`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share && navigator.canShare(shareData)) {
+        await navigator.share(shareData);
+        toast({
+          title: "Article shared successfully!",
+          description: "The article has been shared via your device's share menu.",
+        });
+      } else {
+        // Fallback: Copy to clipboard
+        await navigator.clipboard.writeText(`${article.title} - ${window.location.href}`);
+        toast({
+          title: "Link copied to clipboard!",
+          description: "You can now paste and share this article anywhere.",
+        });
+      }
+    } catch (error) {
+      console.error("Error sharing:", error);
+      toast({
+        title: "Sharing failed",
+        description: "Please try again or copy the URL manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInternalShare = () => {
+    if (!article) return;
+    
+    // Navigate to the boardroom/chat selection with article data
+    navigate(`/boardroom?shareArticle=${encodeURIComponent(JSON.stringify({
+      id: article.id,
+      title: article.title,
+      url: window.location.href,
+      source: article.source,
+      imageUrl: article.imageUrl || article.heroImage
+    }))}`);
   };
 
   const renderArticleContent = (content: string, products: FashionProduct[]) => {
@@ -128,49 +178,33 @@ export default function ArticlePage() {
       <div className="bg-white border-b border-gray-200 sticky top-0 z-40 flex-shrink-0">
         <div className="max-w-md mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                className="p-0 h-8 w-8"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </Button>
-              
-              <div className="flex space-x-8">
-                <button
-                  onClick={() => setActiveTab("global")}
-                  className={`text-sm font-medium pb-2 border-b-2 transition-colors ${
-                    activeTab === "global"
-                      ? "text-black border-black"
-                      : "text-gray-500 border-transparent hover:text-gray-700"
-                  }`}
-                >
-                  Global News
-                </button>
-                <button
-                  onClick={() => setActiveTab("trends")}
-                  className={`text-sm font-medium pb-2 border-b-2 transition-colors ${
-                    activeTab === "trends"
-                      ? "text-black border-black"
-                      : "text-gray-500 border-transparent hover:text-gray-700"
-                  }`}
-                >
-                  Lulo Trends
-                </button>
-              </div>
-            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBack}
+              className="p-0 h-8 w-8"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
             
-            <div className="flex items-center space-x-3">
-              <Button variant="ghost" size="sm">
-                <Search className="w-5 h-5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="flex items-center space-x-1">
-                <span className="text-sm">go global</span>
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </div>
+            {/* Share Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="p-2 h-8 w-8 flex-shrink-0">
+                  <MoreVertical className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleExternalShare} className="flex items-center gap-2">
+                  <ExternalLink className="w-4 h-4" />
+                  Share Externally
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleInternalShare} className="flex items-center gap-2">
+                  <MessageCircle className="w-4 h-4" />
+                  Send to Friends
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
@@ -184,15 +218,17 @@ export default function ArticlePage() {
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-bold text-black mb-6 leading-tight">
-          {article.title}
-        </h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-black leading-tight">
+            {article.title}
+          </h1>
+        </div>
 
         {/* Hero Image */}
         {(article.heroImage || article.imageUrl) && (
           <div className="mb-6">
-            <img
-              src={article.heroImage || article.imageUrl}
+              <img
+               src={`/api/image-proxy?url=${encodeURIComponent(article.heroImage || article.imageUrl)}`}
               alt={article.title}
               className="w-full h-auto object-cover rounded-lg"
             />

@@ -8,6 +8,8 @@ import { aiImageAnalysisService } from "./services/aiImageAnalysis";
 import { productSearchService } from "./services/productSearchService";
 import { FashionNewsService } from "./services/fashionNewsService";
 import { visualSearchService } from "./services/visualSearchService";
+import fetch from "node-fetch";
+import { Buffer } from "node:buffer";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -666,6 +668,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching article:", error);
       res.status(500).json({ message: "Failed to fetch article" });
+    }
+  });
+
+  // Image proxy to bypass hotlinking restrictions and normalize headers
+  app.get('/api/image-proxy', async (req, res) => {
+    try {
+      const imageUrl = req.query.url as string;
+      if (!imageUrl || typeof imageUrl !== 'string') {
+        return res.status(400).json({ message: 'Missing url parameter' });
+      }
+
+      if (!/^https?:\/\//i.test(imageUrl)) {
+        return res.status(400).json({ message: 'Invalid url scheme' });
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const response = await fetch(imageUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15',
+          Accept: 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          Referer: new URL(imageUrl).origin,
+        },
+      } as any);
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return res.status(502).json({ message: 'Failed to fetch image' });
+      }
+
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      const contentLengthHeader = response.headers.get('content-length');
+      const maxBytes = 5 * 1024 * 1024; // 5MB cap
+      if (contentLengthHeader) {
+        const contentLength = parseInt(contentLengthHeader, 10);
+        if (!Number.isNaN(contentLength) && contentLength > maxBytes) {
+          return res.status(413).json({ message: 'Image too large' });
+        }
+      }
+
+      // Buffer the image (small sizes) to simplify streaming compatibility
+      const arrayBuf = await response.arrayBuffer();
+      if (arrayBuf.byteLength > maxBytes) {
+        return res.status(413).json({ message: 'Image too large' });
+      }
+
+      const buffer = Buffer.from(arrayBuf);
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Cache-Control', 'public, max-age=10800'); // 3 hours
+      res.send(buffer);
+    } catch (error) {
+      if ((error as any)?.name === 'AbortError') {
+        return res.status(504).json({ message: 'Image fetch timeout' });
+      }
+      console.error('Error in image proxy:', error);
+      return res.status(500).json({ message: 'Image proxy error' });
     }
   });
 

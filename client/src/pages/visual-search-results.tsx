@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
-import { ArrowLeft, MoreVertical, ShoppingBag, Eye } from "lucide-react";
+import { ArrowLeft, MoreVertical, ShoppingBag, Eye, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -88,7 +88,7 @@ export default function VisualSearchResultsPage() {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           
-          <h1 className="text-lg font-medium">Visual Search</h1>
+          <h1 className="text-lg font-medium">Lulo Results</h1>
           
           <Button
             variant="ghost"
@@ -100,7 +100,7 @@ export default function VisualSearchResultsPage() {
         </div>
       </div>
 
-      {/* Uploaded Image Preview */}
+      {/* Uploaded Image Preview - matches screenshot */}
       {uploadedImage && (
         <div className="bg-white px-4 py-4">
           <div className="max-w-md mx-auto">
@@ -110,8 +110,9 @@ export default function VisualSearchResultsPage() {
                 alt="Search image" 
                 className="w-full h-full object-cover"
               />
-              <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                Save
+              <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded flex items-center space-x-1">
+                <Save className="w-3 h-3" />
+                <span>Save</span>
               </div>
             </div>
           </div>
@@ -123,19 +124,19 @@ export default function VisualSearchResultsPage() {
         <div className="bg-white px-4 py-3 border-b border-gray-200">
           <div className="max-w-md mx-auto space-y-2">
             <div className="flex items-center justify-center space-x-2 mb-2">
-              <Eye className="w-4 h-4 text-purple-500" />
+              <Eye className="w-4 h-4 text-[#FADADD]" />
               <span className="text-sm text-gray-600">AI Analysis Complete</span>
             </div>
             <div className="flex flex-wrap gap-2 justify-center">
-              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+              <Badge variant="secondary" className="bg-[#FADADD]/20 text-[#FADADD] border-[#FADADD]/30">
                 {analysis.detectedCategory}
               </Badge>
               {analysis.detectedColors.map((color, idx) => (
-                <Badge key={idx} variant="secondary" className="bg-pink-100 text-pink-700">
+                <Badge key={idx} variant="secondary" className="bg-[#FADADD]/20 text-[#FADADD] border-[#FADADD]/30">
                   {color}
                 </Badge>
               ))}
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+              <Badge variant="secondary" className="bg-[#FADADD]/20 text-[#FADADD] border-[#FADADD]/30">
                 {analysis.detectedStyle}
               </Badge>
             </div>

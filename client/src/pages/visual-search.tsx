@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
-import { ArrowLeft, Camera, Upload } from "lucide-react";
+import { ArrowLeft, Camera, Upload, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function VisualSearchPage() {
@@ -50,28 +50,29 @@ export default function VisualSearchPage() {
       <div className="max-w-md mx-auto px-4 py-8">
         {!selectedImage ? (
           <>
-            {/* Visual Search Button */}
+            {/* Visual Search Bar - matches screenshot */}
             <div className="mb-8">
               <button
                 onClick={triggerFileSelect}
-                className="w-full py-4 bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-300 text-white rounded-xl font-medium hover:from-pink-400 hover:via-purple-400 hover:to-indigo-400 transition-all"
+                className="w-full py-4 bg-gradient-to-r from-[#FADADD]/20 to-white text-gray-700 rounded-xl font-medium hover:from-[#FADADD]/30 hover:to-gray-50 transition-all border border-gray-200 flex items-center justify-center space-x-2"
               >
-                Visual Search
+                <Search className="w-5 h-5 text-[#FADADD]" />
+                <span>Visual Search</span>
               </button>
             </div>
 
-            {/* Upload Area */}
+            {/* Main Image Upload Area */}
             <div 
               onClick={triggerFileSelect}
-              className="border-2 border-dashed border-gray-300 rounded-xl p-12 text-center cursor-pointer hover:border-gray-400 transition-colors"
+              className="relative aspect-[9/16] max-h-96 w-full mx-auto overflow-hidden rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:border-gray-400 transition-colors mb-6"
             >
-              <div className="flex justify-center mb-4">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center">
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-50">
+                <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-sm mb-4">
                   <Upload className="w-10 h-10 text-gray-400" />
                 </div>
+                <p className="text-gray-600 mb-2 font-medium">Upload an image</p>
+                <p className="text-sm text-gray-400">or take a screenshot to search</p>
               </div>
-              <p className="text-gray-600 mb-2">Select an image from your camera roll</p>
-              <p className="text-sm text-gray-400">or take a screenshot to search</p>
             </div>
 
             {/* Hidden file input */}
@@ -84,7 +85,7 @@ export default function VisualSearchPage() {
             />
 
             {/* Take Photo Button */}
-            <div className="mt-4">
+            <div className="mb-8">
               <button
                 onClick={() => {
                   // Use capture attribute for camera
@@ -114,7 +115,7 @@ export default function VisualSearchPage() {
             </div>
 
             {/* Instructions */}
-            <div className="mt-8 space-y-4">
+            <div className="space-y-4">
               <div className="flex items-start space-x-3">
                 <div className="w-8 h-8 bg-pink-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <Camera className="w-4 h-4 text-pink-500" />

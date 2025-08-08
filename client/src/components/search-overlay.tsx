@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -144,24 +144,33 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
       />
       
       {/* Search Overlay */}
-      <div className="fixed inset-0 bg-white z-50 flex flex-col">
-      {/* Header */}
-      <div className="bg-white px-4 pt-14 pb-4">
-        <div className="max-w-md mx-auto">
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              placeholder="Search"
-              value={searchQuery}
-              onChange={handleQueryChange}
-              onKeyPress={handleKeyPress}
-              className="pl-12 pr-4 py-3 bg-gray-100 border-0 rounded-full text-base focus:ring-2 focus:ring-lulo-pink focus:bg-white"
-              autoFocus
-            />
-          </div>
-          
-          {/* Filter Buttons */}
-          <div className="mt-4">
+      <div className="fixed inset-0 bg-white z-50 flex flex-col" style={{ top: '80px' }}>
+        {/* Header with Back Button */}
+        <div className="bg-white px-4 pt-4 pb-4 border-b border-gray-200">
+          <div className="max-w-md mx-auto">
+            <div className="flex items-center space-x-3 mb-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onClose}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-5 h-5 text-gray-600" />
+              </Button>
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <Input
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={handleQueryChange}
+                  onKeyPress={handleKeyPress}
+                  className="pl-12 pr-4 py-3 bg-gray-100 border-0 rounded-full text-base focus:ring-2 focus:ring-lulo-pink focus:bg-white"
+                  autoFocus
+                />
+              </div>
+            </div>
+            
+            {/* Filter Buttons */}
             <div className="flex flex-wrap gap-2">
               {searchFilters.map((filter) => {
                 const isActive = activeFilter === filter.id;
@@ -183,7 +192,6 @@ export default function SearchOverlay({ isOpen, onClose }: SearchOverlayProps) {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Search Results */}
       <div className="flex-1 overflow-y-auto bg-white">

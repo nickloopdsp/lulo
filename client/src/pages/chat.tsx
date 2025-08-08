@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useLocation } from "wouter";
-import { ChevronLeft, MoreHorizontal, Heart } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ChevronLeft, MoreHorizontal, Heart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -289,7 +290,67 @@ export default function ChatPage() {
   const [, navigate] = useLocation();
   const [message, setMessage] = useState("");
   const [activeInsertMenu, setActiveInsertMenu] = useState<string | null>(null);
+  const [showWishlistDropdown, setShowWishlistDropdown] = useState(false);
+  const [showClosetDropdown, setShowClosetDropdown] = useState(false);
+  const [showLookboardDropdown, setShowLookboardDropdown] = useState(false);
+  const [selectedClosetCategory, setSelectedClosetCategory] = useState<string | null>(null);
+  const [selectedLookboardCollection, setSelectedLookboardCollection] = useState<string | null>(null);
+  const [showClosetItems, setShowClosetItems] = useState(false);
+  const [showLookboardItems, setShowLookboardItems] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wishlistButtonRef = useRef<HTMLDivElement>(null);
+  const closetButtonRef = useRef<HTMLDivElement>(null);
+  const lookboardButtonRef = useRef<HTMLDivElement>(null);
+
+  // Fetch user's wishlist folders
+  const { data: wishlistFolders = [] } = useQuery({
+    queryKey: ["/api/wishlist/folders"],
+    enabled: showWishlistDropdown
+  });
+
+  // Mock closet categories data - in real app this would come from API
+  const mockClosetCategories = [
+    {
+      name: "Tops",
+      imageUrl: "/api/placeholder/200/250",
+      itemCount: 84,
+      items: [
+        { id: 1, name: "Striped Polo", brand: "Ralph Lauren", price: "$89", imageUrl: "/api/placeholder/200/250" },
+        { id: 2, name: "GANNI Tee", brand: "GANNI", price: "$45", imageUrl: "/api/placeholder/200/300" },
+        { id: 3, name: "Striped Top", brand: "Zara", price: "$29", imageUrl: "/api/placeholder/200/280" }
+      ]
+    },
+    {
+      name: "Dresses",
+      imageUrl: "/api/placeholder/200/320",
+      itemCount: 84,
+      items: [
+        { id: 4, name: "Summer Dress", brand: "Reformation", price: "$248", imageUrl: "/api/placeholder/200/320" },
+        { id: 5, name: "Beige Dress", brand: "Free People", price: "$168", imageUrl: "/api/placeholder/200/260" },
+        { id: 6, name: "Blue Dress", brand: "ASOS", price: "$85", imageUrl: "/api/placeholder/200/290" }
+      ]
+    },
+    {
+      name: "Jewelry",
+      imageUrl: "/api/placeholder/200/310",
+      itemCount: 84,
+      items: [
+        { id: 7, name: "Shell Earrings", brand: "Local Artisan", price: "$45", imageUrl: "/api/placeholder/200/310" },
+        { id: 8, name: "Pearl Ring", brand: "Mejuri", price: "$120", imageUrl: "/api/placeholder/200/270" },
+        { id: 9, name: "Leather Necklace", brand: "Handmade", price: "$35", imageUrl: "/api/placeholder/200/330" }
+      ]
+    },
+    {
+      name: "Bottoms",
+      imageUrl: "/api/placeholder/200/240",
+      itemCount: 84,
+      items: [
+        { id: 10, name: "Checkered Pants", brand: "HIGH SPORT", price: "$960", imageUrl: "/api/placeholder/200/240" },
+        { id: 11, name: "Yellow Pants", brand: "TWP", price: "$445", imageUrl: "/api/placeholder/200/325" },
+        { id: 12, name: "Parachute Trousers", brand: "RÓHE", price: "$685", imageUrl: "/api/placeholder/200/265" }
+      ]
+    }
+  ];
 
   const conversation = chatId ? mockConversations[chatId] : null;
 
@@ -297,6 +358,81 @@ export default function ChatPage() {
     // Scroll to bottom on mount and when messages change
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [conversation?.messages]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (wishlistButtonRef.current && !wishlistButtonRef.current.contains(event.target as Node)) {
+        setShowWishlistDropdown(false);
+      }
+      if (closetButtonRef.current && !closetButtonRef.current.contains(event.target as Node)) {
+        setShowClosetDropdown(false);
+        setShowClosetItems(false);
+        setSelectedClosetCategory(null);
+      }
+      if (lookboardButtonRef.current && !lookboardButtonRef.current.contains(event.target as Node)) {
+        setShowLookboardDropdown(false);
+        setSelectedLookboardCollection(null);
+        setShowLookboardItems(false);
+      }
+    }
+
+    if (showWishlistDropdown || showClosetDropdown || showLookboardDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showWishlistDropdown, showClosetDropdown, showLookboardDropdown]);
+
+  const handleWishlistSelect = (wishlistName: string) => {
+    // Here you would normally send the wishlist to the chat
+    console.log("Sending wishlist to chat:", wishlistName);
+    
+    // For now, just close the dropdown
+    setShowWishlistDropdown(false);
+    
+    // In a real implementation, you would:
+    // 1. Fetch the wishlist items for this folder
+    // 2. Add a new message to the conversation with type "wishlist"
+    // 3. Include the wishlist items as attachments
+  };
+
+  const handleClosetCategorySelect = (categoryName: string) => {
+    setSelectedClosetCategory(categoryName);
+    setShowClosetItems(true);
+  };
+
+  const handleClosetItemSelect = (item: any) => {
+    // Here you would normally send the closet item to the chat
+    console.log("Sending closet item to chat:", item);
+    
+    // Close all dropdowns
+    setShowClosetDropdown(false);
+    setShowClosetItems(false);
+    setSelectedClosetCategory(null);
+    
+    // In a real implementation, you would:
+    // 1. Add a new message to the conversation with type "closet"
+    // 2. Include the item as an attachment
+  };
+
+  const handleLookboardCollectionSelect = (collectionName: string) => {
+    setSelectedLookboardCollection(collectionName);
+    setShowLookboardItems(true);
+  };
+
+  const handleLookboardItemSelect = (item: any) => {
+    // Here you would normally send the lookboard item to the chat
+    console.log("Sending lookboard item to chat:", item);
+    
+    // Close all dropdowns
+    setShowLookboardDropdown(false);
+    setShowLookboardItems(false);
+    setSelectedLookboardCollection(null);
+    
+    // In a real implementation, you would:
+    // 1. Add a new message to the conversation with type "lookboard"
+    // 2. Include the item as an attachment
+  };
 
   if (!conversation) {
     return (
@@ -343,7 +479,12 @@ export default function ChatPage() {
           </Avatar>
           
           <div>
-            <h2 className="font-semibold text-base">{user.displayName}</h2>
+            <h2 
+              className="font-semibold text-base hover:text-[#FADADD] cursor-pointer"
+              onClick={() => navigate(`/user/${user.id}`)}
+            >
+              {user.displayName}
+            </h2>
             <p className="text-xs text-gray-500">{user.lastSeen}</p>
           </div>
         </div>
@@ -380,11 +521,19 @@ export default function ChatPage() {
                   <div className="mt-2">
                     {msg.type === "wishlist" && (
                       msg.attachments.length > 1 ? (
-                        <div className="max-w-[280px]">
-                          <div className="p-2 border-2 border-lulo-pink rounded-lg">
-                            <div className="grid grid-cols-2 gap-1">
-                              {msg.attachments.slice(0, 4).map((item, idx) => (
-                                <div key={item.id} className="relative overflow-hidden rounded">
+                        <div 
+                          className="max-w-[280px] cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => {
+                            const wishlistName = msg.attachments?.[0]?.source;
+                            if (wishlistName) {
+                              navigate(`/wishlist?folder=${encodeURIComponent(wishlistName)}`);
+                            }
+                          }}
+                        >
+                          <div className="liquid-glass rounded-2xl p-3">
+                            <div className="grid grid-cols-2 gap-2">
+                              {msg.attachments?.slice(0, 4).map((item, idx) => (
+                                <div key={item.id} className="relative overflow-hidden rounded-xl">
                                   <img
                                     src={item.imageUrl}
                                     alt={item.name}
@@ -402,19 +551,19 @@ export default function ChatPage() {
                           <Button 
                             variant="outline" 
                             size="sm" 
-                            className="mt-2 w-full text-xs border-gray-300 text-gray-700 hover:bg-gray-50"
+                            className="mt-3 w-full text-xs glass-button"
                           >
                             Follow Wishlist
                           </Button>
                           <p className="text-center text-xs font-medium text-gray-700 mt-2">
-                            WISHLIST: GRAD
+                            {msg.attachments?.[0]?.source}
                           </p>
                         </div>
                       ) : (
                         <div className="max-w-[240px]">
-                          {msg.attachments.map((item) => (
-                            <Card key={item.id} className="overflow-hidden border-0 shadow-sm">
-                              <div className="relative bg-gray-50">
+                          {msg.attachments?.map((item) => (
+                            <div key={item.id} className="liquid-glass rounded-2xl overflow-hidden shadow-lg mb-3">
+                              <div className="relative">
                                 <img
                                   src={item.imageUrl}
                                   alt={item.name}
@@ -426,24 +575,39 @@ export default function ChatPage() {
                                   </div>
                                 )}
                               </div>
-                              <div className="p-3 bg-white">
+                              <div className="p-3">
                                 <div className="space-y-1 mb-3">
                                   <p className="text-xs text-gray-500">Add to a Wishlist</p>
                                   <p className="text-xs text-gray-500">Add to My Closet</p>
                                 </div>
-                                <p className="text-xs font-medium uppercase">{item.source}: {item.name}</p>
+                                <p className="text-xs font-medium uppercase text-gray-800">{item.source}: {item.name}</p>
                               </div>
-                            </Card>
+                            </div>
                           ))}
                         </div>
                       )
                     )}
                     
                     {msg.type === "closet" && (
-                      <div className="space-y-2 max-w-[200px]">
-                        {msg.attachments.map((item) => (
-                          <div key={item.id} className="border-2 border-lulo-pink rounded-lg overflow-hidden">
-                            <div className="relative bg-gray-50">
+                      <div className="space-y-3 max-w-[200px]">
+                        {msg.attachments?.map((item) => (
+                          <div 
+                            key={item.id} 
+                            className="liquid-glass rounded-2xl overflow-hidden cursor-pointer hover:liquid-glass-hover transition-all duration-200"
+                            onClick={() => {
+                              // Navigate to product page with item data
+                              const itemData = {
+                                id: item.id,
+                                name: item.name,
+                                brand: item.brand,
+                                price: item.price,
+                                imageUrl: item.imageUrl,
+                                source: item.source
+                              };
+                              navigate(`/item/${item.id}?data=${encodeURIComponent(JSON.stringify(itemData))}`);
+                            }}
+                          >
+                            <div className="relative">
                               <img
                                 src={item.imageUrl}
                                 alt={item.name}
@@ -455,10 +619,10 @@ export default function ChatPage() {
                                 </div>
                               )}
                             </div>
-                            <div className="p-3 bg-white text-center">
+                            <div className="p-3 text-center">
                               <p className="text-xs text-gray-600 mb-1">{item.brand}</p>
                               <p className="text-xs text-gray-600 mb-2">{item.price}</p>
-                              <p className="text-xs font-medium">{item.source}: {item.name}</p>
+                              <p className="text-xs font-medium text-gray-800">{item.source}: {item.name}</p>
                             </div>
                           </div>
                         ))}
@@ -466,26 +630,28 @@ export default function ChatPage() {
                     )}
                     
                     {msg.type === "lookboard" && (
-                      <div className="grid grid-cols-2 gap-1 max-w-[280px]">
-                        {msg.attachments.map((item, idx) => (
-                          <div key={item.id} className="relative overflow-hidden rounded-lg">
-                            <img
-                              src={item.imageUrl}
-                              alt={item.name}
-                              className="w-full h-40 object-cover"
-                            />
-                            {idx === 0 && item.source && (
-                              <div className="absolute bottom-2 left-2 bg-white/90 px-2 py-1 rounded text-xs font-medium">
-                                {item.source}: {item.name}
-                              </div>
-                            )}
-                            {item.liked && (
-                              <div className="absolute top-2 right-2">
-                                <Heart className="w-5 h-5 text-red-500 fill-current" />
-                              </div>
-                            )}
-                          </div>
-                        ))}
+                      <div className="liquid-glass rounded-2xl p-3 max-w-[280px]">
+                        <div className="grid grid-cols-2 gap-2">
+                          {msg.attachments?.map((item, idx) => (
+                            <div key={item.id} className="relative overflow-hidden rounded-xl">
+                              <img
+                                src={item.imageUrl}
+                                alt={item.name}
+                                className="w-full h-40 object-cover"
+                              />
+                              {idx === 0 && item.source && (
+                                <div className="absolute bottom-2 left-2 glass-button px-2 py-1 rounded-lg text-xs font-medium">
+                                  {item.source}: {item.name}
+                                </div>
+                              )}
+                              {item.liked && (
+                                <div className="absolute top-2 right-2">
+                                  <Heart className="w-5 h-5 text-red-500 fill-current" />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </div>
@@ -511,32 +677,417 @@ export default function ChatPage() {
         
         <div className="flex items-center justify-between mt-3">
           <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs border-lulo-pink text-lulo-pink hover:bg-lulo-pink hover:text-white transition-colors rounded-full px-4 py-1"
-              onClick={() => setActiveInsertMenu("wishlist")}
-            >
-              insert wishlist
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs border-lulo-pink text-lulo-pink hover:bg-lulo-pink hover:text-white transition-colors rounded-full px-4 py-1"
-              onClick={() => setActiveInsertMenu("closet")}
-            >
-              insert closet
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="text-xs border-lulo-pink text-lulo-pink hover:bg-lulo-pink hover:text-white transition-colors rounded-full px-4 py-1"
-              onClick={() => setActiveInsertMenu("lookboard")}
-            >
-              insert lookboard
-            </Button>
+            <div ref={wishlistButtonRef} className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs glass-button rounded-full px-4 py-1 text-gray-700"
+                onClick={() => setShowWishlistDropdown(!showWishlistDropdown)}
+              >
+                insert wishlist
+              </Button>
+
+              {/* Wishlist Dropdown */}
+              {showWishlistDropdown && (
+                <div className="absolute bottom-full left-0 mb-2 z-50">
+                  <div className="liquid-glass rounded-2xl shadow-lg p-3 min-w-[200px]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-sm font-semibold text-gray-800">Select Wishlist</h4>
+                      <Button
+                        onClick={() => setShowWishlistDropdown(false)}
+                        variant="ghost"
+                        size="sm"
+                        className="p-1 glass-button rounded-full"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Button
+                        onClick={() => handleWishlistSelect("uncategorized")}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-left justify-start glass-button"
+                      >
+                        Uncategorized
+                      </Button>
+                      
+                      {(wishlistFolders as string[])?.map((folder: string) => (
+                        <Button
+                          key={folder}
+                          onClick={() => handleWishlistSelect(folder)}
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-left justify-start glass-button"
+                        >
+                          {folder}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+            <div ref={closetButtonRef} className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs glass-button rounded-full px-4 py-1 text-gray-700"
+                onClick={() => setShowClosetDropdown(!showClosetDropdown)}
+              >
+                insert closet
+              </Button>
+
+              {/* Closet Dropdown */}
+              {showClosetDropdown && (
+                <div className="absolute bottom-full left-0 mb-2 z-50">
+                  <div className="liquid-glass rounded-2xl shadow-lg p-3 min-w-[200px]">
+                    {!showClosetItems ? (
+                      // Category Selection
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-800">Select Category</h4>
+                          <Button
+                            onClick={() => setShowClosetDropdown(false)}
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 glass-button rounded-full"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {mockClosetCategories.map((category) => (
+                            <Button
+                              key={category.name}
+                              onClick={() => handleClosetCategorySelect(category.name)}
+                              variant="outline"
+                              size="sm"
+                              className="w-full text-left justify-start glass-button"
+                            >
+                              {category.name} ({category.itemCount})
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      // Item Selection
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              onClick={() => {
+                                setShowClosetItems(false);
+                                setSelectedClosetCategory(null);
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="p-1 glass-button rounded-full"
+                            >
+                              ←
+                            </Button>
+                            <h4 className="text-sm font-semibold text-gray-800">{selectedClosetCategory}</h4>
+                          </div>
+                          <Button
+                            onClick={() => {
+                              setShowClosetDropdown(false);
+                              setShowClosetItems(false);
+                              setSelectedClosetCategory(null);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 glass-button rounded-full"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {mockClosetCategories
+                            .find(cat => cat.name === selectedClosetCategory)
+                            ?.items.map((item) => (
+                              <div
+                                key={item.id}
+                                onClick={() => handleClosetItemSelect(item)}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.name}
+                                  className="w-12 h-12 object-cover rounded-lg"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">{item.name}</p>
+                                  <p className="text-xs text-gray-500">{item.brand}</p>
+                                  <p className="text-xs text-gray-600">{item.price}</p>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div ref={lookboardButtonRef} className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs glass-button rounded-full px-4 py-1 text-gray-700"
+                onClick={() => setShowLookboardDropdown(!showLookboardDropdown)}
+              >
+                insert lookboard
+              </Button>
+
+              {/* Lookboard Dropdown */}
+              {showLookboardDropdown && (
+                <div className="absolute bottom-full left-0 mb-2 z-50">
+                  <div className="liquid-glass rounded-2xl shadow-lg p-3 min-w-[200px]">
+                    {!showLookboardItems ? (
+                      // Collection Selection
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="text-sm font-semibold text-gray-800">Select Collection</h4>
+                          <Button
+                            onClick={() => setShowLookboardDropdown(false)}
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 glass-button rounded-full"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {/* Mock lookboard collections */}
+                          <Button
+                            onClick={() => handleLookboardCollectionSelect("Silver vs Gold")}
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-left justify-start glass-button"
+                          >
+                            Silver vs Gold
+                          </Button>
+                          <Button
+                            onClick={() => handleLookboardCollectionSelect("Pastel Colors")}
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-left justify-start glass-button"
+                          >
+                            Pastel Colors
+                          </Button>
+                          <Button
+                            onClick={() => handleLookboardCollectionSelect("Bold Patterns")}
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-left justify-start glass-button"
+                          >
+                            Bold Patterns
+                          </Button>
+                          <Button
+                            onClick={() => handleLookboardCollectionSelect("See All Lookboards")}
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-left justify-start glass-button"
+                          >
+                            See All Lookboards
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      // Item Selection
+                      <>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              onClick={() => {
+                                setShowLookboardItems(false);
+                                setSelectedLookboardCollection(null);
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              className="p-1 glass-button rounded-full"
+                            >
+                              ←
+                            </Button>
+                            <h4 className="text-sm font-semibold text-gray-800">{selectedLookboardCollection}</h4>
+                          </div>
+                          <Button
+                            onClick={() => {
+                              setShowLookboardDropdown(false);
+                              setShowLookboardItems(false);
+                              setSelectedLookboardCollection(null);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            className="p-1 glass-button rounded-full"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                        
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {/* Mock lookboard items for the selected collection */}
+                          {selectedLookboardCollection === "Silver vs Gold" && (
+                            <>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 1, name: "Silver Accessories", brand: "Silver", price: "€120", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Silver" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Silver Accessories</p>
+                                  <p className="text-xs text-gray-500">Silver</p>
+                                  <p className="text-xs text-gray-600">€120</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 2, name: "Gold Earrings", brand: "Gold", price: "€80", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Gold" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Gold Earrings</p>
+                                  <p className="text-xs text-gray-500">Gold</p>
+                                  <p className="text-xs text-gray-600">€80</p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          {selectedLookboardCollection === "Pastel Colors" && (
+                            <>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 3, name: "Pastel Floral Dress", brand: "Reformation", price: "€298", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Pastel Dress" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Pastel Floral Dress</p>
+                                  <p className="text-xs text-gray-500">Reformation</p>
+                                  <p className="text-xs text-gray-600">€298</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 4, name: "Pastel Mini Bag", brand: "Mansur Gavriel", price: "€395", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Pastel Bag" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Pastel Mini Bag</p>
+                                  <p className="text-xs text-gray-500">Mansur Gavriel</p>
+                                  <p className="text-xs text-gray-600">€395</p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          {selectedLookboardCollection === "Bold Patterns" && (
+                            <>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 5, name: "Bold Striped Top", brand: "Zara", price: "€45", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Bold Top" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Bold Striped Top</p>
+                                  <p className="text-xs text-gray-500">Zara</p>
+                                  <p className="text-xs text-gray-600">€45</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 6, name: "Bold Checkered Pants", brand: "HIGH SPORT", price: "€960", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Bold Pants" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Bold Checkered Pants</p>
+                                  <p className="text-xs text-gray-500">HIGH SPORT</p>
+                                  <p className="text-xs text-gray-600">€960</p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                          {selectedLookboardCollection === "See All Lookboards" && (
+                            <>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 1, name: "Silver Accessories", brand: "Silver", price: "€120", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Silver" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Silver Accessories</p>
+                                  <p className="text-xs text-gray-500">Silver</p>
+                                  <p className="text-xs text-gray-600">€120</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 2, name: "Gold Earrings", brand: "Gold", price: "€80", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Gold" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Gold Earrings</p>
+                                  <p className="text-xs text-gray-500">Gold</p>
+                                  <p className="text-xs text-gray-600">€80</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 3, name: "Pastel Floral Dress", brand: "Reformation", price: "€298", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Pastel Dress" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Pastel Floral Dress</p>
+                                  <p className="text-xs text-gray-500">Reformation</p>
+                                  <p className="text-xs text-gray-600">€298</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 4, name: "Pastel Mini Bag", brand: "Mansur Gavriel", price: "€395", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Pastel Bag" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Pastel Mini Bag</p>
+                                  <p className="text-xs text-gray-500">Mansur Gavriel</p>
+                                  <p className="text-xs text-gray-600">€395</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 5, name: "Bold Striped Top", brand: "Zara", price: "€45", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Bold Top" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Bold Striped Top</p>
+                                  <p className="text-xs text-gray-500">Zara</p>
+                                  <p className="text-xs text-gray-600">€45</p>
+                                </div>
+                              </div>
+                              <div 
+                                onClick={() => handleLookboardItemSelect({ id: 6, name: "Bold Checkered Pants", brand: "HIGH SPORT", price: "€960", imageUrl: "/api/placeholder/200/250" })}
+                                className="flex items-center space-x-3 p-2 hover:liquid-glass-hover rounded-lg cursor-pointer liquid-glass transition-all duration-200"
+                              >
+                                <img src="/api/placeholder/200/250" alt="Bold Pants" className="w-12 h-12 object-cover rounded-lg" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate text-gray-800">Bold Checkered Pants</p>
+                                  <p className="text-xs text-gray-500">HIGH SPORT</p>
+                                  <p className="text-xs text-gray-600">€960</p>
+                                </div>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <Button variant="ghost" size="sm" className="p-2">
+          <Button variant="ghost" size="sm" className="p-2 glass-button rounded-full">
             <MoreHorizontal className="w-4 h-4" />
           </Button>
         </div>

@@ -42,6 +42,43 @@ export default function BoardroomPage() {
   const [activeTab, setActiveTab] = useState<"boardroom" | "activity">("boardroom");
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(false);
+  
+  // Check for shared content in URL parameters
+  const urlParams = new URLSearchParams(window.location.search);
+  const shareArticleData = urlParams.get('shareArticle');
+  const shareItemData = urlParams.get('shareItem');
+  const targetFriendId = urlParams.get('friendId');
+  const [sharedArticle, setSharedArticle] = useState<any>(null);
+  const [sharedItem, setSharedItem] = useState<any>(null);
+  const [selectedChats, setSelectedChats] = useState<string[]>([]);
+
+  // Parse shared content data on component mount
+  useEffect(() => {
+    if (shareArticleData) {
+      try {
+        const articleData = JSON.parse(decodeURIComponent(shareArticleData));
+        setSharedArticle(articleData);
+        setActiveTab("boardroom"); // Switch to boardroom tab for sharing
+      } catch (error) {
+        console.error("Failed to parse shared article data:", error);
+      }
+    }
+    
+    if (shareItemData) {
+      try {
+        const itemData = JSON.parse(decodeURIComponent(shareItemData));
+        setSharedItem(itemData);
+        setActiveTab("boardroom"); // Switch to boardroom tab for sharing
+        
+        // If a specific friend is targeted, pre-select them
+        if (targetFriendId) {
+          setSelectedChats([targetFriendId]);
+        }
+      } catch (error) {
+        console.error("Failed to parse shared item data:", error);
+      }
+    }
+  }, [shareArticleData, shareItemData, targetFriendId]);
 
   // Mock chat data
   const chats: Chat[] = [
@@ -242,64 +279,159 @@ export default function BoardroomPage() {
   );
 
   const handleChatClick = (chatId: string) => {
-    // Navigate to individual chat
-    navigate(`/chat/${chatId}`);
+    if (sharedArticle || sharedItem) {
+      // If sharing content, toggle chat selection
+      setSelectedChats(prev => 
+        prev.includes(chatId) 
+          ? prev.filter(id => id !== chatId)
+          : [...prev, chatId]
+      );
+    } else {
+      // Normal navigation to individual chat
+      navigate(`/chat/${chatId}`);
+    }
+  };
+
+  const handleSendContent = () => {
+    if ((!sharedArticle && !sharedItem) || selectedChats.length === 0) return;
+    
+    if (sharedArticle) {
+      // Send article
+      console.log("Sending article to chats:", selectedChats, sharedArticle);
+      alert(`Article "${sharedArticle.title}" sent to ${selectedChats.length} chat(s)!`);
+      navigate(`/article/${sharedArticle.id}`);
+    } else if (sharedItem) {
+      // Send item
+      console.log("Sending item to chats:", selectedChats, sharedItem);
+      alert(`Item "${sharedItem.name}" sent to ${selectedChats.length} chat(s)!`);
+      // Navigate back to the previous page (usually the article where the item was)
+      window.history.back();
+    }
+  };
+
+  const handleCancelShare = () => {
+    if (sharedArticle) {
+      navigate(`/article/${sharedArticle.id}`);
+    } else if (sharedItem) {
+      window.history.back();
+    }
   };
 
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
-      <div className="bg-white sticky top-0 z-40">
+      <div className="bg-white border-b border-lulo-border sticky top-0 z-40">
         <div className="max-w-md mx-auto px-4 pt-4 pb-2">
-          {/* Tabs */}
-          <div className="flex items-center justify-center space-x-8 mb-4">
-            <button
-              onClick={() => setActiveTab("boardroom")}
-              className={`text-base font-medium pb-2 border-b-2 transition-colors ${
-                activeTab === "boardroom"
-                  ? "text-lulo-pink border-lulo-pink"
-                  : "text-gray-400 border-transparent"
-              }`}
-            >
-              Board Room
-            </button>
-            <button
-              onClick={() => setActiveTab("activity")}
-              className={`relative text-base font-medium pb-2 border-b-2 transition-colors ${
-                activeTab === "activity"
-                  ? "text-lulo-pink border-lulo-pink"
-                  : "text-gray-400 border-transparent"
-              }`}
-            >
-              Activity
-              {/* Notification badge */}
-              <span className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                1
-              </span>
-            </button>
-          </div>
-
-          {/* Search bar */}
-          <div className="flex items-center space-x-2">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-full"
-              />
+          {(sharedArticle || sharedItem) ? (
+            /* Sharing Header */
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Button variant="ghost" size="sm" onClick={handleCancelShare}>
+                  Cancel
+                </Button>
+                <h1 className="text-lg font-semibold">
+                  {sharedArticle ? "Share Article" : "Share Item"}
+                </h1>
+              </div>
+              <Button 
+                onClick={handleSendContent}
+                disabled={selectedChats.length === 0}
+                className="bg-[#FADADD] hover:bg-[#FADADD]/90 text-white"
+              >
+                Send ({selectedChats.length})
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" className="rounded-full p-2">
-              <Plus className="w-5 h-5" />
-            </Button>
-          </div>
+          ) : (
+            /* Normal Tabs */
+            <div className="flex items-center justify-center space-x-8">
+              <button
+                onClick={() => setActiveTab("boardroom")}
+                className={`text-sm font-medium pb-2 border-b-2 transition-all duration-200 ${
+                  activeTab === "boardroom"
+                    ? "text-[#FADADD] border-[#FADADD]"
+                    : "text-gray-400 border-transparent hover:text-[#FADADD] hover:border-[#FADADD]/50"
+                }`}
+              >
+                Board Room
+              </button>
+              <button
+                onClick={() => setActiveTab("activity")}
+                className={`relative text-sm font-medium pb-2 border-b-2 transition-all duration-200 ${
+                  activeTab === "activity"
+                    ? "text-[#FADADD] border-[#FADADD]"
+                    : "text-gray-400 border-transparent hover:text-[#FADADD] hover:border-[#FADADD]/50"
+                }`}
+              >
+                Activity
+                {/* Notification badge */}
+                <span className="absolute -top-1 -right-3 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  1
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
+      {/* Search bar */}
+      <div className="bg-white px-4 py-3 border-b border-lulo-border">
+        <div className="flex items-center space-x-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-4 py-2 bg-gray-100 border-0 rounded-full"
+            />
+          </div>
+          <Button variant="ghost" size="sm" className="rounded-full p-2 lulo-hover">
+            <Plus className="w-5 h-5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Shared Content Preview */}
+      {(sharedArticle || sharedItem) && (
+        <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+          <div className="max-w-md mx-auto">
+            <p className="text-sm text-gray-600 mb-2">
+              Sharing this {sharedArticle ? "article" : "item"}:
+            </p>
+            <div className="bg-white rounded-lg p-3 border">
+              <div className="flex space-x-3">
+                <img 
+                  src={sharedArticle ? sharedArticle.imageUrl : sharedItem.imageUrl} 
+                  alt={sharedArticle ? sharedArticle.title : sharedItem.name}
+                  className="w-12 h-12 object-cover rounded"
+                />
+                <div className="flex-1 min-w-0">
+                  {sharedArticle ? (
+                    <>
+                      <p className="text-xs text-gray-500 mb-1">{sharedArticle.source}</p>
+                      <h4 className="text-sm font-medium text-gray-900 line-clamp-2 leading-tight">
+                        {sharedArticle.title}
+                      </h4>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-xs text-gray-500 mb-1">{sharedItem.brand}</p>
+                      <h4 className="text-sm font-medium text-gray-900 line-clamp-2 leading-tight">
+                        {sharedItem.name}
+                      </h4>
+                      <p className="text-xs text-gray-600">{sharedItem.price}</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="max-w-md mx-auto">
-        {activeTab === "boardroom" ? (
+        {(activeTab === "boardroom" || sharedArticle || sharedItem) ? (
           /* Chat List */
           <div className="divide-y divide-gray-100">
             {loading ? (
@@ -325,6 +457,17 @@ export default function BoardroomPage() {
                 onClick={() => handleChatClick(chat.id)}
               >
                 <div className="flex items-center space-x-3 flex-1">
+                  {/* Selection checkbox for sharing */}
+                  {(sharedArticle || sharedItem) && (
+                    <input
+                      type="checkbox"
+                      checked={selectedChats.includes(chat.id)}
+                      onChange={() => handleChatClick(chat.id)}
+                      className="w-4 h-4 text-[#FADADD] border-gray-300 rounded focus:ring-[#FADADD]"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  )}
+                  
                   {/* Avatar with online indicator */}
                   <div className="relative">
                     <Avatar className="w-12 h-12">
@@ -339,7 +482,15 @@ export default function BoardroomPage() {
                   {/* Chat info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-1">
-                      <h3 className="font-medium text-sm truncate">{chat.username}</h3>
+                      <h3 
+                        className="font-medium text-sm truncate hover:text-[#FADADD] cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/user/${chat.userId}`);
+                        }}
+                      >
+                        {chat.username}
+                      </h3>
                       {chat.isVerified && (
                         <Badge variant="secondary" className="w-4 h-4 p-0 bg-blue-500 rounded-full">
                           <span className="text-white text-xs">✓</span>
@@ -404,7 +555,15 @@ export default function BoardroomPage() {
                   {/* Activity info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center space-x-1 mb-1">
-                      <h3 className="font-semibold text-sm">{activity.username}</h3>
+                      <h3 
+                        className="font-semibold text-sm hover:text-[#FADADD] cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/user/${activity.userId}`);
+                        }}
+                      >
+                        {activity.username}
+                      </h3>
                       <span className="text-xs text-gray-400">{activity.timestamp}</span>
                     </div>
                     <p className="text-sm text-gray-600">{activity.action}</p>

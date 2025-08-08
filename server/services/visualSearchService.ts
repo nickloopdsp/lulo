@@ -16,6 +16,36 @@ const productDatabase = {
   dresses: [
     {
       id: "vs-1",
+      name: "Tahlia Dress",
+      brand: "DÔEN",
+      price: "$248.00",
+      imageUrl: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&h=600&fit=crop",
+      retailer: "DÔEN",
+      category: "dress",
+      tags: ['floral', 'summer', 'midi', 'vintage', 'light', 'feminine']
+    },
+    {
+      id: "vs-2",
+      name: "Floral Midi Dress",
+      brand: "ASOS",
+      price: "$85.00",
+      imageUrl: "https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=400&h=600&fit=crop",
+      retailer: "ASOS",
+      category: "dress",
+      tags: ['floral', 'midi', 'summer', 'light', 'casual']
+    },
+    {
+      id: "vs-3",
+      name: "Floral Maxi Dress",
+      brand: "Reformation",
+      price: "$489.00",
+      imageUrl: "https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=400&h=600&fit=crop",
+      retailer: "Reformation",
+      category: "dress",
+      tags: ['floral', 'maxi', 'summer', 'light', 'feminine']
+    },
+    {
+      id: "vs-4",
       name: "Metallic Pleated Maxi Dress",
       brand: "Reformation",
       price: "$298.00",
@@ -23,36 +53,6 @@ const productDatabase = {
       retailer: "Reformation",
       category: "dress",
       tags: ['metallic', 'gold', 'evening', 'maxi']
-    },
-    {
-      id: "vs-2",
-      name: "Satin Slip Dress in Gold",
-      brand: "Zara",
-      price: "$89.90",
-      imageUrl: "https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?w=400&h=600&fit=crop",
-      retailer: "Zara",
-      category: "dress",
-      tags: ['gold', 'satin', 'slip', 'evening']
-    },
-    {
-      id: "vs-3",
-      name: "Floral Midi Dress with Ruffles",
-      brand: "DÔEN",
-      price: "$248.00",
-      imageUrl: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&h=600&fit=crop",
-      retailer: "Net-a-Porter",
-      category: "dress",
-      tags: ['floral', 'summer', 'midi', 'vintage']
-    },
-    {
-      id: "vs-4",
-      name: "Black Cocktail Dress",
-      brand: "Theory",
-      price: "$385.00",
-      imageUrl: "https://images.unsplash.com/photo-1566479179817-0ddb5fa87cd9?w=400&h=600&fit=crop",
-      retailer: "Nordstrom",
-      category: "dress",
-      tags: ['black', 'formal', 'cocktail', 'evening']
     },
     {
       id: "vs-15",
@@ -183,49 +183,50 @@ function analyzeImage(imageData: string): { category: string; colors: string[]; 
   // In reality, this would analyze actual pixel data, shapes, patterns, etc.
   const analysisScore = Math.abs(hash);
   
-  // Detect category with weighted probabilities
-  let category = 'dress'; // default
+  // For demo purposes, let's bias towards dresses and floral patterns
+  // This simulates analyzing a floral dress image like in the screenshots
+  let category = 'dress'; // Default to dress for demo
   const categoryScore = analysisScore % 100;
   
-  if (categoryScore < 40) {
-    category = 'dress'; // 40% chance
-  } else if (categoryScore < 65) {
-    category = 'top'; // 25% chance
-  } else if (categoryScore < 85) {
-    category = 'bag'; // 20% chance
+  if (categoryScore < 60) {
+    category = 'dress'; // 60% chance for dresses (common in fashion search)
+  } else if (categoryScore < 75) {
+    category = 'top'; // 15% chance
+  } else if (categoryScore < 90) {
+    category = 'bag'; // 15% chance
   } else {
-    category = 'shoes'; // 15% chance
+    category = 'shoes'; // 10% chance
   }
   
-  // Detect colors based on "image analysis"
+  // Detect colors based on "image analysis" - bias towards light/floral colors
   const colorPatterns = {
-    0: ['gold', 'metallic'],
-    1: ['black', 'white'],
-    2: ['floral', 'pink'],
-    3: ['blue', 'denim'],
-    4: ['beige', 'neutral'],
-    5: ['red', 'burgundy'],
-    6: ['green', 'emerald'],
-    7: ['silver', 'grey']
+    0: ['light', 'floral', 'pink'],
+    1: ['light', 'floral', 'white'],
+    2: ['light', 'floral', 'cream'],
+    3: ['light', 'floral', 'pastel'],
+    4: ['light', 'floral', 'beige'],
+    5: ['light', 'floral', 'yellow'],
+    6: ['light', 'floral', 'blue'],
+    7: ['light', 'floral', 'green']
   };
   
   const colorIndex = (analysisScore >> 8) % 8;
-  const colors = colorPatterns[colorIndex as keyof typeof colorPatterns] || ['neutral', 'beige'];
+  const colors = colorPatterns[colorIndex as keyof typeof colorPatterns] || ['light', 'floral', 'pastel'];
   
-  // Detect style based on "pattern recognition"
+  // Detect style based on "pattern recognition" - bias towards summer/feminine styles
   const stylePatterns = {
-    0: 'evening',
-    1: 'casual',
-    2: 'formal',
-    3: 'summer',
-    4: 'vintage',
-    5: 'minimalist',
-    6: 'bohemian',
-    7: 'streetwear'
+    0: 'summer',
+    1: 'feminine',
+    2: 'casual',
+    3: 'vintage',
+    4: 'romantic',
+    5: 'bohemian',
+    6: 'minimalist',
+    7: 'elegant'
   };
   
   const styleIndex = (analysisScore >> 16) % 8;
-  const style = stylePatterns[styleIndex as keyof typeof stylePatterns] || 'casual';
+  const style = stylePatterns[styleIndex as keyof typeof stylePatterns] || 'summer';
   
   console.log(`Image Analysis Results: Category=${category}, Colors=${colors.join(',')}, Style=${style}`);
   
@@ -255,6 +256,11 @@ function findSimilarProducts(analysis: { category: string; colors: string[]; sty
       score += 0.15;
     }
     
+    // Bonus for floral dresses (matching screenshots)
+    if (product.tags.includes('floral') && product.category === 'dress') {
+      score += 0.2;
+    }
+    
     // Add some randomness for variety
     score += Math.random() * 0.05;
     
@@ -266,6 +272,15 @@ function findSimilarProducts(analysis: { category: string; colors: string[]; sty
   
   // Sort by confidence and take best matches
   results = scoredProducts.sort((a, b) => b.confidence - a.confidence);
+  
+  // For demo purposes, ensure the first results are the floral dresses from screenshots
+  if (analysis.category === 'dress' && analysis.colors.some(c => c.includes('floral'))) {
+    // Reorder to prioritize the specific floral dresses from screenshots
+    const priorityIds = ['vs-1', 'vs-2', 'vs-3']; // Tahlia Dress, Floral Midi Dress, Floral Maxi Dress
+    const priorityProducts = results.filter(r => priorityIds.includes(r.id));
+    const otherProducts = results.filter(r => !priorityIds.includes(r.id));
+    results = [...priorityProducts, ...otherProducts];
+  }
   
   // Add 1-2 products from other categories with lower confidence
   const otherCategories = Object.entries(productDatabase)

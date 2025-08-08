@@ -116,7 +116,7 @@ export default function Search() {
   };
 
   return (
-    <div className="mobile-main bg-lulo-light-gray">
+    <div className="mobile-main bg-white">
       {/* Header */}
       <div className="bg-white px-4 py-3 border-b border-lulo-border">
         <div className="flex items-center justify-between mb-3">
@@ -125,13 +125,13 @@ export default function Search() {
               <TabsList className="bg-transparent p-0 h-auto space-x-4">
                 <TabsTrigger 
                   value="global" 
-                  className="px-0 pb-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-lulo-dark data-[state=active]:border-b-2 data-[state=active]:border-lulo-dark rounded-none text-lulo-gray"
+                  className="px-0 pb-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#FADADD] data-[state=active]:border-b-2 data-[state=active]:border-[#FADADD] rounded-none text-lulo-gray"
                 >
                   Global News
                 </TabsTrigger>
                 <TabsTrigger 
                   value="trends" 
-                  className="px-0 pb-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-lulo-dark data-[state=active]:border-b-2 data-[state=active]:border-lulo-dark rounded-none text-lulo-gray"
+                  className="px-0 pb-1 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#FADADD] data-[state=active]:border-b-2 data-[state=active]:border-[#FADADD] rounded-none text-lulo-gray"
                 >
                   Lulo Trends
                 </TabsTrigger>

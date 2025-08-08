@@ -22,14 +22,14 @@ export default function BottomNavigation() {
     },
     { 
       icon: null, 
-      label: "Upload", 
+      label: "Lulo Search", 
       path: "/upload",
       type: "home-circle"
     },
     { 
       icon: ShoppingBag, 
-      label: "Shopping Space", 
-      path: "/shopping",
+      label: "Fashion Home", 
+      path: "/wishlist",
       type: "icon"
     },
     { 
@@ -54,12 +54,12 @@ export default function BottomNavigation() {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(item.path)}
-                className="flex flex-col items-center space-y-1 py-2 relative"
+                className="flex flex-col items-center space-y-1 py-2 relative lulo-hover"
               >
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 ${
                   isActive 
-                    ? "bg-lulo-dark" 
-                    : "border-2 border-lulo-gray"
+                    ? "bg-[#FADADD]" 
+                    : "border-2 border-lulo-gray hover:border-[#FADADD] hover:bg-[#FADADD]/10"
                 }`}>
                   <LuloIcon 
                     size={20} 
@@ -77,11 +77,11 @@ export default function BottomNavigation() {
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(item.path)}
-                className="flex flex-col items-center space-y-1 py-2"
+                className="flex flex-col items-center space-y-1 py-2 lulo-hover"
               >
-                <Avatar className="w-8 h-8">
+                <Avatar className="w-8 h-8 hover:ring-2 hover:ring-[#FADADD] transition-all duration-200">
                   <AvatarImage src="/api/placeholder/40/40" />
-                  <AvatarFallback className="bg-lulo-light-gray text-lulo-dark text-xs">
+                  <AvatarFallback className="bg-gray-100 text-lulo-dark text-xs">
                     U
                   </AvatarFallback>
                 </Avatar>
@@ -95,12 +95,12 @@ export default function BottomNavigation() {
               variant="ghost"
               size="sm"
               onClick={() => navigate(item.path)}
-              className="flex flex-col items-center space-y-1 py-2 relative"
+              className="flex flex-col items-center space-y-1 py-2 relative lulo-hover"
             >
               <div className="relative">
                 {Icon && (
-                  <Icon className={`w-6 h-6 ${
-                    isActive ? "text-lulo-dark" : "text-lulo-gray"
+                  <Icon className={`w-6 h-6 transition-all duration-200 ${
+                    isActive ? "text-[#FADADD]" : "text-lulo-gray hover:text-[#FADADD]"
                   }`} />
                 )}
               </div>

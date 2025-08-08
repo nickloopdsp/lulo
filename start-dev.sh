@@ -15,9 +15,9 @@ PORT=3001 NODE_ENV=development npm run dev &
 # Wait for backend to start
 sleep 3
 
-# Start frontend
+# Start frontend from project root so it picks up root vite.config.ts (aliases, proxy)
 echo "🎨 Starting frontend server on port 5173..."
-cd client && npx vite &
+npx vite --config vite.config.ts &
 
 echo "✅ Servers starting..."
 echo "   Backend: http://localhost:3001"

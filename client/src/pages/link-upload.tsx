@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { ItemImage } from "@/components/ui/item-image";
 import { Badge } from "@/components/ui/badge";
 import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +49,7 @@ export default function LinkUploadPage() {
   const [isScrapingLink, setIsScrapingLink] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const form = useForm<ItemFormData>({
     resolver: zodResolver(itemSchema),
@@ -76,9 +78,13 @@ export default function LinkUploadPage() {
 
     setIsScrapingLink(true);
     try {
-      const response = await apiRequest("POST", "/api/products/scrape-url", {
-        url: linkUrl
+      const response = await fetch('/api/products/scrape-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: linkUrl }),
       });
+
+      if (!response.ok) throw new Error('Failed to scrape URL');
 
       const scrapedData = await response.json();
       
@@ -112,26 +118,54 @@ export default function LinkUploadPage() {
 
   const onSubmit = async (data: ItemFormData) => {
     try {
-      const endpoint = data.destination === "wishlist" ? "/api/wishlist" : "/api/closet";
-      
-      await apiRequest("POST", endpoint, {
+      // Step 1: Create the item
+      const itemPayload = {
         name: data.name,
-        brand: data.brand || null,
-        price: data.price ? parseFloat(data.price) : null,
-        description: data.description || null,
-        category: data.category || null,
-        imageUrl: data.imageUrl || null,
-        sourceUrl: data.sourceUrl || null,
-        folder: data.folder || null,
-      });
+        description: data.description || "",
+        price: data.price ? parseFloat(data.price) : undefined,
+        currency: "USD",
+        brand: data.brand || "",
+        imageUrl: data.imageUrl || "",
+        sourceUrl: data.sourceUrl || "",
+        category: data.category || "",
+        isPublic: true,
+      };
+      
+      const itemResponse = await apiRequest("POST", "/api/items", itemPayload);
+      const createdItem = await itemResponse.json();
+      
+      // Step 2: Add to wishlist or closet
+      const destination = data.destination;
+      const endpoint = destination === "wishlist" ? "/api/wishlist" : "/api/closet";
+      
+      if (destination === "wishlist") {
+        const wishlistPayload = {
+          itemId: createdItem.id,
+          folder: data.folder && data.folder !== "" ? data.folder : null,
+        };
+        await apiRequest("POST", endpoint, wishlistPayload);
+      } else {
+        const closetPayload = {
+          itemId: createdItem.id,
+        };
+        await apiRequest("POST", endpoint, closetPayload);
+      }
 
       toast({
         title: "Success",
         description: `Item added to your ${data.destination}!`,
       });
 
+      // Invalidate queries to update the UI
+      queryClient.invalidateQueries({ queryKey: [`/api/${data.destination}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/wishlist/folders"] });
+
       // Navigate to the appropriate page
-      navigate(data.destination === "wishlist" ? "/wishlist" : "/closet");
+      if (data.destination === "wishlist") {
+        navigate("/wishlist");
+      } else {
+        navigate("/closet");
+      }
     } catch (error) {
       toast({
         title: "Error",
@@ -167,8 +201,8 @@ export default function LinkUploadPage() {
           <div className="space-y-6">
             {/* Icon */}
             <div className="flex justify-center mb-8">
-              <div className="w-24 h-24 bg-gradient-to-br from-pink-100 to-purple-100 rounded-full flex items-center justify-center">
-                <Link className="w-12 h-12 text-purple-500" />
+              <div className="w-24 h-24 bg-gradient-to-br from-[#FADADD]/20 to-[#FADADD]/10 rounded-full flex items-center justify-center">
+                <Link className="w-12 h-12 text-[#FADADD]" />
               </div>
             </div>
 
@@ -196,7 +230,7 @@ export default function LinkUploadPage() {
               <Button
                 onClick={handleLinkParse}
                 disabled={isScrapingLink}
-                className="w-full h-12 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white"
+                className="w-full h-12 bg-gradient-to-r from-[#FADADD] to-[#FADADD]/80 hover:from-[#FADADD]/90 hover:to-[#FADADD]/70 text-white"
               >
                 {isScrapingLink ? (
                   <>
@@ -374,7 +408,7 @@ export default function LinkUploadPage() {
               {/* Submit Button */}
               <Button
                 type="submit"
-                className="w-full h-12 bg-gradient-to-r from-pink-400 to-purple-400 hover:from-pink-500 hover:to-purple-500 text-white"
+                className="w-full h-12 bg-gradient-to-r from-[#FADADD] to-[#FADADD]/80 hover:from-[#FADADD]/90 hover:to-[#FADADD]/70 text-white"
               >
                 Add to {form.watch('destination') === 'wishlist' ? 'Wishlist' : 'Closet'}
               </Button>

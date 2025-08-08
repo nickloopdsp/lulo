@@ -11,7 +11,8 @@ import AddItem from "@/pages/add-item";
 import Closet from "@/pages/closet";
 import Profile from "@/pages/profile";
 import Wishlist from "@/pages/wishlist";
-import Lookbooks from "@/pages/lookbooks";
+import Lookboards from "@/pages/lookboards";
+import CreateLookboard from "@/pages/create-lookboard";
 import StyleIconsPage from "@/pages/style-icons";
 import NotFound from "@/pages/not-found";
 import SocialActivity from "@/pages/social-activity";
@@ -152,7 +153,8 @@ function Router() {
             <Route path="/wishlist" component={Wishlist} />
             <Route path="/shopping" component={Wishlist} />
             <Route path="/closet" component={Closet} />
-            <Route path="/lookbooks" component={Lookbooks} />
+            <Route path="/lookboards" component={Lookboards} />
+            <Route path="/create-lookboard" component={CreateLookboard} />
             <Route path="/search" component={Search} />
             <Route path="/add-item" component={AddItem} />
             <Route path="/style-icons" component={StyleIconsPage} />

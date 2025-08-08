@@ -1,6 +1,8 @@
 import { db } from "../db";
 import { items, wishlists, closets } from "../../shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import fetch from "node-fetch";
+import { load as loadHtml } from "cheerio";
 
 export interface FashionProduct {
   id: string;
@@ -44,7 +46,7 @@ const curatedArticles: FashionArticle[] = [
     id: "harpers-1",
     title: "The Top 10 Fashion Trends From the Spring 2025 Runways",
     description: "From maximalist florals to new minimalism, here's everything you need to know about next season's biggest trends.",
-    imageUrl: "/api/placeholder/400/500",
+    imageUrl: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=400&h=500&fit=crop",
     articleUrl: "https://www.harpersbazaar.com/fashion/trends/",
     source: "HARPER'S BAZAAR",
     category: "Trends",
@@ -67,7 +69,7 @@ const curatedArticles: FashionArticle[] = [
     id: "wwwshopping-1",
     title: "The 9 Most Expensive-Looking Pieces on the High Street This Week",
     description: "From elevated basics to statement pieces, these high street finds rival designer quality without the price tag.",
-    imageUrl: "/api/placeholder/400/500",
+    imageUrl: "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=500&fit=crop",
     articleUrl: "https://www.whowhatwear.com/fashion/shopping",
     source: "WHO WHAT WEAR UK",
     category: "Shopping",
@@ -90,7 +92,7 @@ const curatedArticles: FashionArticle[] = [
     id: "wwwoutfit-1",
     title: "5 Outfit Formulas Fashion People Rely On When They Have Nothing to Wear",
     description: "Save these fail-safe combinations for those mornings when inspiration is running low.",
-    imageUrl: "/api/placeholder/400/500",
+    imageUrl: "https://images.unsplash.com/photo-1485230895905-ec40ba36b9bc?w=400&h=500&fit=crop",
     articleUrl: "https://www.whowhatwear.com/fashion/outfit-ideas",
     source: "WHO WHAT WEAR UK",
     category: "Outfit Ideas",
@@ -103,13 +105,13 @@ const curatedArticles: FashionArticle[] = [
     id: "wwwtrends-1",
     title: "6 Top Color Trends We're Investing in This Summer",
     description: "Summer is the best season to play with color. The warmer months have a tendency to bring brighter fashion choices, even for those who generally gravitate towards neutrals in their wardrobe.",
-    imageUrl: "/api/placeholder/400/500",
+    imageUrl: "https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=400&h=500&fit=crop",
     articleUrl: "https://www.whowhatwear.com/fashion/trends",
     source: "WHO WHAT WEAR",
     category: "Trends",
     publishedDate: new Date().toISOString(),
     readTime: "8 min read",
-    heroImage: "/api/placeholder/800/400",
+    heroImage: "https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=800&h=400&fit=crop",
     content: `<p>Summer is the best season to play with color. The warmer months have a tendency to bring brighter fashion choices, even for those who generally gravitate towards neutrals in their wardrobe. The top global color trends play with many themes we have seen across the spring/summer 2025 runways.</p>
 
 <p>Pastels continue to rule. We saw a continuation of the <a href="#" class="text-blue-600 underline">butter yellow</a> trend at Proenza Schouler, Prada, and Loewe, while <a href="#" class="text-blue-600 underline">ballet pink</a> won us over at Chanel, Khaite, and Victoria Beckham, by way of dreamy light-as-air dresses and separates that are ideal for battling a summer heatwave, to wear to <a href="#" class="text-blue-600 underline">work</a> or on an upcoming <a href="#" class="text-blue-600 underline">vacation</a>.</p>
@@ -133,7 +135,7 @@ const curatedArticles: FashionArticle[] = [
         name: "Victoria Beckham Vest",
         brand: "Victoria Beckham",
         price: "£450",
-        imageUrl: "/api/placeholder/200/250",
+        imageUrl: "https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=200&h=250&fit=crop",
         sourceUrl: "https://www.victoriabeckham.com",
         shopAtText: "SHOP AT VICTORIA BECKHAM"
       },
@@ -142,7 +144,7 @@ const curatedArticles: FashionArticle[] = [
         name: "Rae Sophie Adam Skirt",
         brand: "Rae Sophie",
         price: "£245",
-        imageUrl: "/api/placeholder/200/250",
+        imageUrl: "https://images.unsplash.com/photo-1502716119720-b23a93e5fe1b?w=200&h=250&fit=crop",
         sourceUrl: "https://www.raesophie.com",
         shopAtText: "SHOP AT RAE SOPHIE"
       },
@@ -151,7 +153,7 @@ const curatedArticles: FashionArticle[] = [
         name: "Black Suede Walla-Wee Flats",
         brand: "Black Suede Studio",
         price: "£185",
-        imageUrl: "/api/placeholder/200/250", 
+        imageUrl: "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=200&h=250&fit=crop", 
         sourceUrl: "https://www.blacksudestudio.com",
         shopAtText: "SHOP AT BLACK SUEDE"
       }
@@ -163,7 +165,7 @@ const curatedArticles: FashionArticle[] = [
     id: "vogue-1",
     title: "Shop the 15 Best Investment Pieces for Your Wardrobe",
     description: "Vogue editors share their picks for timeless pieces worth the splurge, from the perfect trench to forever bags.",
-    imageUrl: "/api/placeholder/400/500",
+    imageUrl: "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=400&h=500&fit=crop",
     articleUrl: "https://www.vogue.com/shopping",
     source: "VOGUE",
     category: "Shopping",
@@ -176,7 +178,7 @@ const curatedArticles: FashionArticle[] = [
     id: "elle-1",
     title: "The Biggest Color Trends to Wear This Season",
     description: "From dopamine brights to earthy neutrals, these are the shades dominating runways and street style.",
-    imageUrl: "/api/placeholder/400/500",
+    imageUrl: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=400&h=500&fit=crop",
     articleUrl: "https://www.elle.com/fashion/trend-reports/",
     source: "ELLE",
     category: "Trend Reports",
@@ -186,6 +188,80 @@ const curatedArticles: FashionArticle[] = [
 ];
 
 export class FashionNewsService {
+  // Simple in-memory cache for OG images to avoid re-fetching
+  private static ogImageCache: Map<string, { url: string; cachedAt: number }> = new Map();
+
+  private static async fetchOgImage(articleUrl: string): Promise<string | null> {
+    try {
+      // Return from cache if available and fresh (< 6 hours)
+      const cached = this.ogImageCache.get(articleUrl);
+      const sixHoursMs = 6 * 60 * 60 * 1000;
+      if (cached && Date.now() - cached.cachedAt < sixHoursMs) {
+        return cached.url;
+      }
+
+      // Abort fetch if it takes too long
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+
+      const response = await fetch(articleUrl, {
+        signal: controller.signal,
+        headers: {
+          // Pretend to be a normal browser
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.6 Safari/605.1.15",
+          Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+      } as any);
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const html = await response.text();
+      const $ = loadHtml(html);
+
+      // Try common meta tags for social images
+      const candidates: string[] = [];
+      const ogImage = $('meta[property="og:image"]').attr("content");
+      if (ogImage) candidates.push(ogImage);
+      const twitterImage = $('meta[name="twitter:image"]').attr("content");
+      if (twitterImage) candidates.push(twitterImage);
+      const ogImageSecure = $('meta[property="og:image:secure_url"]').attr("content");
+      if (ogImageSecure) candidates.push(ogImageSecure);
+
+      const best = candidates.find((u) => typeof u === "string" && u.trim().length > 0) || null;
+
+      if (best) {
+        this.ogImageCache.set(articleUrl, { url: best, cachedAt: Date.now() });
+      }
+
+      return best;
+    } catch (error) {
+      // Swallow errors and return null to fall back on curated image
+      return null;
+    }
+  }
+
+  private static async enrichArticlesWithImages(
+    articles: FashionArticle[],
+  ): Promise<FashionArticle[]> {
+    // Try to replace placeholder/stock images with the real article OG image.
+    const enriched = await Promise.all(
+      articles.map(async (article) => {
+        const realImage = await this.fetchOgImage(article.articleUrl);
+        if (realImage && typeof realImage === "string") {
+          return { ...article, imageUrl: realImage };
+        }
+        return article;
+      })
+    );
+    return enriched;
+  }
+
   static async getFashionNews(userId: string, region: string = "global"): Promise<FashionArticle[]> {
     try {
       console.log("FashionNewsService: Getting fashion news for user", userId);
@@ -220,8 +296,9 @@ export class FashionNewsService {
       const userItems = [...wishlistData, ...closetData];
 
       // Always return curated articles to ensure content is displayed
-      console.log("FashionNewsService: Returning", curatedArticles.length, "curated articles");
-      return curatedArticles;
+      console.log("FashionNewsService: Enriching", curatedArticles.length, "curated articles with real images");
+      const enriched = await this.enrichArticlesWithImages(curatedArticles);
+      return enriched;
     } catch (error) {
       console.error("Error fetching fashion news:", error);
       // Return curated articles even if there's an error
@@ -307,8 +384,11 @@ export class FashionNewsService {
         return null;
       }
 
-      console.log("FashionNewsService: Found article", article.title);
-      return article;
+      // Enrich with OG image if available
+      const realImage = await this.fetchOgImage(article.articleUrl);
+      const enriched = realImage ? { ...article, imageUrl: realImage } : article;
+      console.log("FashionNewsService: Found article", enriched.title);
+      return enriched;
     } catch (error) {
       console.error("Error fetching article by ID:", error);
       return null;
